@@ -1,0 +1,2257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>// DASHBOARD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===================================================
+       THEMES
+    =================================================== */
+    :root, [data-theme="green"] {
+      --bg: #0d0d0d;
+      --fg: #33ff57;
+      --fg-dim: #1e9e36;
+      --fg-muted: #0d4a18;
+      --border: #1a7a2c;
+      --accent: #88ffaa;
+      --input-bg: #060606;
+    }
+    [data-theme="amber"] {
+      --bg: #0d0d0d;
+      --fg: #ffb000;
+      --fg-dim: #9a6a00;
+      --fg-muted: #4a3300;
+      --border: #8a5e00;
+      --accent: #ffd060;
+      --input-bg: #060606;
+    }
+    [data-theme="white"] {
+      --bg: #0d0d0d;
+      --fg: #cccccc;
+      --fg-dim: #777777;
+      --fg-muted: #333333;
+      --border: #505050;
+      --accent: #ffffff;
+      --input-bg: #060606;
+    }
+    [data-theme="light"] {
+      --bg: #f0f0ec;
+      --fg: #1a1a1a;
+      --fg-dim: #555555;
+      --fg-muted: #999999;
+      --border: #999999;
+      --accent: #000000;
+      --input-bg: #e6e6e2;
+    }
+
+    /* ===================================================
+       BASE
+    =================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 14px;
+    }
+
+    .dashboard {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    /* ===================================================
+       TOPBAR
+    =================================================== */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 7px;
+      margin-bottom: 10px;
+    }
+    .sys-title {
+      font-size: 11px;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+    }
+    .theme-btns { display: flex; gap: 6px; }
+    .tbtn {
+      background: none;
+      border: 1px solid var(--fg-muted);
+      color: var(--fg-dim);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 9px;
+      cursor: pointer;
+      letter-spacing: 0.12em;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .tbtn:hover, .tbtn.active {
+      border-color: var(--fg);
+      color: var(--fg);
+    }
+
+    /* ===================================================
+       LAYOUT GRID
+    =================================================== */
+    .row { display: grid; gap: 8px; margin-bottom: 8px; }
+    .row-2 { grid-template-columns: 1fr 1fr; }
+    .row-3 { grid-template-columns: 1.1fr 0.9fr 1fr; }
+    .span-full { grid-column: 1 / -1; }
+
+    @media (max-width: 800px) {
+      .row-2, .row-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ===================================================
+       PANEL
+    =================================================== */
+    .panel {
+      border: 1px solid var(--border);
+      padding: 9px 12px;
+    }
+    .panel-hdr {
+      font-size: 9px;
+      letter-spacing: 0.28em;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      padding-bottom: 5px;
+      margin-bottom: 7px;
+      border-bottom: 1px solid var(--fg-muted);
+    }
+
+    /* ===================================================
+       MAIN CLOCK
+    =================================================== */
+    #main-time {
+      font-size: 44px;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+    #main-date {
+      font-size: 13px;
+      color: var(--fg-dim);
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+    }
+    #main-doy {
+      font-size: 11px;
+      color: var(--fg-muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* ===================================================
+       WORLD CLOCKS
+    =================================================== */
+    .tz-panel-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9px;
+      letter-spacing: 0.28em;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      padding-bottom: 5px;
+      margin-bottom: 7px;
+      border-bottom: 1px solid var(--fg-muted);
+    }
+    .tz-add-btn {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.1s;
+    }
+    .tz-add-btn:hover { color: var(--fg); }
+    .tz-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--fg-muted);
+    }
+    .tz-row:last-child { border-bottom: none; }
+    .tz-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--fg-dim);
+    }
+    .tz-right { display: flex; align-items: baseline; gap: 6px; }
+    .tz-time { font-size: 20px; color: var(--fg); }
+    .tz-day {
+      font-size: 9px;
+      color: var(--fg-muted);
+      letter-spacing: 0.1em;
+      min-width: 18px;
+    }
+    .tz-del {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.1s;
+    }
+    .tz-row:hover .tz-del { opacity: 0.5; }
+    .tz-del:hover { opacity: 1 !important; color: var(--fg); }
+    .tz-add-form {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--fg-muted);
+    }
+    .tz-add-form.open { display: flex; }
+    .tz-add-row { display: flex; gap: 5px; align-items: center; }
+    .tz-add-input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 3px 6px;
+      outline: none;
+      flex: 1;
+      min-width: 0;
+    }
+    .tz-add-input:focus { border-color: var(--fg); }
+
+    /* ===================================================
+       WEATHER
+    =================================================== */
+    #wx-location {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--fg-dim);
+      margin-bottom: 5px;
+    }
+    .wx-main {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 5px;
+    }
+    #wx-temp { font-size: 28px; color: var(--accent); line-height: 1; }
+    #wx-cond {
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      color: var(--fg-dim);
+    }
+    .wx-meta {
+      font-size: 11px;
+      color: var(--fg-muted);
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+      letter-spacing: 0.05em;
+    }
+    .wx-meta span > span { color: var(--fg-dim); }
+
+    /* ===================================================
+       WORD OF THE DAY
+    =================================================== */
+    .word-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+    #word-zh { font-size: 34px; color: var(--accent); line-height: 1; }
+    .word-meta { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+    #word-pinyin { font-size: 14px; color: var(--fg-dim); letter-spacing: 0.05em; }
+    #word-def { font-size: 12px; color: var(--fg-muted); }
+    #word-example {
+      font-size: 12px;
+      color: var(--fg-dim);
+      border-left: 2px solid var(--border);
+      padding-left: 10px;
+      margin-bottom: 4px;
+    }
+    #word-example-en {
+      font-size: 11px;
+      color: var(--fg-muted);
+      border-left: 2px solid var(--fg-muted);
+      padding-left: 10px;
+    }
+
+    /* ===================================================
+       STOIC QUOTE
+    =================================================== */
+    #quote-text {
+      font-size: 13px;
+      color: var(--fg);
+      line-height: 1.65;
+      margin-bottom: 7px;
+    }
+    #quote-author {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--fg-dim);
+    }
+
+    /* ===================================================
+       NOTES
+    =================================================== */
+    .notes-log {
+      max-height: 120px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .note-entry {
+      padding: 3px 0;
+      border-bottom: 1px solid var(--fg-muted);
+    }
+    .note-entry:last-child { border-bottom: none; }
+    .note-ts {
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      color: var(--fg-muted);
+      margin-bottom: 2px;
+    }
+    .note-body {
+      color: var(--fg);
+      word-break: break-word;
+      line-height: 1.6;
+    }
+    /* Markdown rendered elements inside notes */
+    .note-body h1, .note-body h2, .note-body h3 {
+      color: var(--accent);
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      margin: 6px 0 2px;
+    }
+    .note-body strong { color: var(--accent); font-weight: normal; letter-spacing: 0.02em; }
+    .note-body em { font-style: italic; color: var(--fg-dim); }
+    .note-body code {
+      background: var(--fg-muted);
+      color: var(--accent);
+      padding: 0 4px;
+      font-family: inherit;
+      font-size: 11px;
+    }
+    .note-body blockquote {
+      border-left: 2px solid var(--border);
+      padding-left: 8px;
+      color: var(--fg-dim);
+      margin: 4px 0;
+    }
+    .note-body ul, .note-body ol {
+      padding-left: 16px;
+      margin: 2px 0;
+    }
+    .note-body li { margin: 1px 0; }
+    .note-body p { margin: 3px 0; }
+    .notes-empty { color: var(--fg-muted); font-size: 11px; font-style: italic; }
+    .notes-input-area { display: flex; gap: 8px; align-items: flex-end; }
+    #note-input {
+      flex: 1;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 10px;
+      resize: vertical;
+      min-height: 58px;
+      outline: none;
+      line-height: 1.5;
+    }
+    #note-input:focus { border-color: var(--fg); }
+    #note-input::placeholder { color: var(--fg-muted); font-style: italic; }
+    .notes-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--fg-dim);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 4px 11px;
+      cursor: pointer;
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .btn:hover { border-color: var(--fg); color: var(--fg); }
+    .btn-primary { border-color: var(--fg); color: var(--fg); }
+    .notes-hint {
+      font-size: 9px;
+      color: var(--fg-muted);
+      letter-spacing: 0.1em;
+      margin-top: 6px;
+    }
+    .note-ts { display: flex; align-items: center; justify-content: space-between; }
+    .note-del {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.1s, color 0.1s;
+    }
+    .note-del:hover { opacity: 1; color: var(--fg); }
+
+    /* ===================================================
+       CALENDAR
+    =================================================== */
+    .cal-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 7px;
+    }
+    .cal-arrow {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.1s;
+    }
+    .cal-arrow:hover { color: var(--fg); }
+    .cal-month {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--fg-dim);
+      text-align: center;
+      cursor: pointer;
+      transition: color 0.1s;
+    }
+    .cal-month:hover { color: var(--fg); }
+    .cal-month.is-current { color: var(--fg-dim); }
+    .cal-month.is-other { color: var(--fg-muted); }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      row-gap: 2px;
+    }
+    .cal-dh {
+      font-size: 9px;
+      color: var(--fg-muted);
+      padding-bottom: 4px;
+    }
+    .cal-d {
+      font-size: 11px;
+      color: var(--fg-dim);
+      padding: 1px 0;
+    }
+    .cal-today {
+      color: var(--accent);
+      outline: 1px solid var(--border);
+    }
+
+    /* ===================================================
+       NAME PROMPT OVERLAY
+    =================================================== */
+    .name-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .name-prompt { max-width: 440px; width: 100%; padding: 0 24px; }
+    .np-line {
+      font-size: 13px;
+      color: var(--fg-dim);
+      letter-spacing: 0.06em;
+      margin-bottom: 5px;
+    }
+    .np-line.hi { color: var(--accent); margin-bottom: 10px; }
+    .np-input-row {
+      display: flex;
+      align-items: center;
+      margin-top: 18px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+    .np-gt { color: var(--fg-dim); font-size: 14px; margin-right: 8px; }
+    #name-entry {
+      background: none;
+      border: none;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      flex: 1;
+      caret-color: var(--fg);
+      letter-spacing: 0.05em;
+    }
+
+    /* ===================================================
+       SETTINGS PANEL
+    =================================================== */
+    .settings-wrap { position: relative; }
+    .settings-panel {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      min-width: 210px;
+      z-index: 50;
+    }
+    .settings-panel.open { display: block; }
+    .sp-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .sp-row:last-child { margin-bottom: 0; }
+    .sp-label {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--fg-dim);
+      min-width: 46px;
+    }
+    .sp-input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 11px;
+      padding: 2px 6px;
+      outline: none;
+      flex: 1;
+    }
+    .sp-input:focus { border-color: var(--fg); }
+
+    /* ===================================================
+       WEATHER FORECAST
+    =================================================== */
+    .wx-body {
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+    }
+    .wx-left { flex: 1; }
+    .wx-right {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      padding-left: 16px;
+      margin-left: 16px;
+      border-left: 1px solid var(--fg-muted);
+      min-width: 160px;
+    }
+    .wx-fc-row {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 11px;
+    }
+    .wx-fc-name { color: var(--fg-dim); min-width: 28px; letter-spacing: 0.1em; }
+    .wx-fc-cond { color: var(--fg-muted); flex: 1; }
+    .wx-fc-temps { color: var(--fg-dim); white-space: nowrap; }
+    .wx-fc-lo { color: var(--fg-muted); }
+
+    /* ===================================================
+       SCROLLBAR
+    =================================================== */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); }
+  </style>
+</head>
+<body>
+
+<!-- NAME PROMPT OVERLAY -->
+<div class="name-overlay" id="name-overlay" style="display:none;">
+  <div class="name-prompt">
+    <div class="np-line hi">// DASHBOARD INIT</div>
+    <div class="np-line">// enter your name to continue</div>
+    <div class="np-line">// press enter when done</div>
+    <div class="np-input-row">
+      <span class="np-gt">&gt;</span>
+      <input type="text" id="name-entry" autocomplete="off" spellcheck="false" maxlength="32">
+    </div>
+  </div>
+</div>
+
+<div class="dashboard">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <span class="sys-title" id="greeting">// PERSONAL DASHBOARD</span>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <div class="theme-btns">
+        <button class="tbtn" data-theme="green"  onclick="setTheme('green')">GRN</button>
+        <button class="tbtn" data-theme="amber"  onclick="setTheme('amber')">AMB</button>
+        <button class="tbtn" data-theme="white"  onclick="setTheme('white')">WHT</button>
+        <button class="tbtn" data-theme="light"  onclick="setTheme('light')">LGT</button>
+      </div>
+      <div class="settings-wrap">
+        <button class="tbtn" id="cfg-btn" onclick="toggleSettings(event)">CFG</button>
+        <div class="settings-panel" id="settings-panel">
+          <div class="sp-row">
+            <span class="sp-label">NAME</span>
+            <input id="cfg-name" class="sp-input" type="text" maxlength="32">
+            <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveCfgName()">SET</button>
+          </div>
+          <div class="sp-row">
+            <span class="sp-label">CLOCK</span>
+            <button class="tbtn" id="fmt-12" onclick="setClockFmt('12')">12H</button>
+            <button class="tbtn" id="fmt-24" onclick="setClockFmt('24')">24H</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 1: CLOCK + WORLD CLOCKS + CALENDAR -->
+  <div class="row row-3">
+    <div class="panel">
+      <div class="panel-hdr">SYS.TIME</div>
+      <div id="main-time">00:00:00</div>
+      <div id="main-date">—</div>
+      <div id="main-doy">—</div>
+    </div>
+    <div class="panel">
+      <div class="tz-panel-hdr">
+        <span>WORLD.CLOCK</span>
+        <button class="tz-add-btn" id="tz-add-btn" onclick="toggleAddZone()" title="add city">+</button>
+      </div>
+      <div id="tz-list"></div>
+      <div class="tz-add-form" id="tz-add-form">
+        <div class="tz-add-row">
+          <input class="tz-add-input" id="tz-new-label" placeholder="LABEL" maxlength="16" spellcheck="false">
+          <input class="tz-add-input" id="tz-new-tz" placeholder="timezone" list="tz-datalist" spellcheck="false">
+        </div>
+        <div class="tz-add-row">
+          <button class="btn btn-primary" style="font-size:10px;padding:2px 10px;" onclick="submitAddZone()">ADD</button>
+          <button class="btn" style="font-size:10px;padding:2px 10px;" onclick="toggleAddZone()">CANCEL</button>
+        </div>
+      </div>
+      <datalist id="tz-datalist">
+        <option value="America/New_York">New York</option>
+        <option value="America/Chicago">Chicago</option>
+        <option value="America/Denver">Denver</option>
+        <option value="America/Los_Angeles">Los Angeles</option>
+        <option value="America/Vancouver">Vancouver</option>
+        <option value="America/Toronto">Toronto</option>
+        <option value="America/Mexico_City">Mexico City</option>
+        <option value="America/Sao_Paulo">São Paulo</option>
+        <option value="Europe/London">London</option>
+        <option value="Europe/Paris">Paris</option>
+        <option value="Europe/Berlin">Berlin</option>
+        <option value="Europe/Amsterdam">Amsterdam</option>
+        <option value="Europe/Madrid">Madrid</option>
+        <option value="Europe/Rome">Rome</option>
+        <option value="Europe/Istanbul">Istanbul</option>
+        <option value="Africa/Cairo">Cairo</option>
+        <option value="Asia/Dubai">Dubai</option>
+        <option value="Asia/Kolkata">Mumbai / Delhi</option>
+        <option value="Asia/Bangkok">Bangkok</option>
+        <option value="Asia/Singapore">Singapore</option>
+        <option value="Asia/Hong_Kong">Hong Kong</option>
+        <option value="Asia/Taipei">Taipei</option>
+        <option value="Asia/Shanghai">Shanghai / Beijing</option>
+        <option value="Asia/Seoul">Seoul</option>
+        <option value="Asia/Tokyo">Tokyo</option>
+        <option value="Australia/Sydney">Sydney</option>
+        <option value="Pacific/Auckland">Auckland</option>
+        <option value="Pacific/Honolulu">Honolulu</option>
+      </datalist>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr">CALENDAR</div>
+      <div class="cal-nav">
+        <button class="cal-arrow" onclick="calStep(-1)">&lsaquo;</button>
+        <span class="cal-month" id="cal-title" onclick="calReset()" title="tap to return to today">—</span>
+        <button class="cal-arrow" onclick="calStep(1)">&rsaquo;</button>
+      </div>
+      <div id="cal-widget"></div>
+    </div>
+  </div>
+
+
+  <!-- ROW 2: WEATHER -->
+  <div class="row">
+    <div class="panel">
+      <div class="panel-hdr">WEATHER</div>
+      <div class="wx-body">
+        <div class="wx-left">
+          <div id="wx-location">&gt;&gt; LOCATING...</div>
+          <div class="wx-main">
+            <span id="wx-temp">—</span>
+            <span id="wx-cond">—</span>
+          </div>
+          <div class="wx-meta">
+            <span>HUM: <span id="wx-hum">—</span></span>
+            <span>WIND: <span id="wx-wind">—</span></span>
+            <span>FEELS: <span id="wx-feels">—</span></span>
+            <span>↑ <span id="wx-rise">—</span></span>
+            <span>↓ <span id="wx-set">—</span></span>
+          </div>
+        </div>
+        <div id="wx-forecast" class="wx-right"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3: WORD OF DAY + STOIC QUOTE -->
+  <div class="row row-2">
+    <div class="panel">
+      <div class="panel-hdr">WORD.OF.DAY — TOCFL LV.4-5</div>
+      <div class="word-top">
+        <span id="word-zh">—</span>
+        <div class="word-meta">
+          <span id="word-pinyin">—</span>
+          <span id="word-def">—</span>
+        </div>
+      </div>
+      <div id="word-example">—</div>
+      <div id="word-example-en">—</div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr">STOIC.QUOTE</div>
+      <div id="quote-text">—</div>
+      <div id="quote-author">—</div>
+    </div>
+  </div>
+
+  <!-- ROW 4: NOTES -->
+  <div class="row">
+    <div class="panel">
+      <div class="panel-hdr">NOTES.LOG</div>
+      <div class="notes-log" id="notes-log">
+        <div class="notes-empty">// no entries yet</div>
+      </div>
+      <div class="notes-input-area">
+        <textarea id="note-input" placeholder="// enter note... (Ctrl+Enter to log)"></textarea>
+        <div class="notes-btns">
+          <button class="btn btn-primary" onclick="logNote()">LOG</button>
+          <button class="btn" onclick="exportNotes('md')">EXP.MD</button>
+          <button class="btn" onclick="exportNotes('txt')">EXP.TXT</button>
+        </div>
+      </div>
+      <div class="notes-hint">ENTRIES KEPT FOR 21 DAYS &nbsp;|&nbsp; CTRL+ENTER TO LOG</div>
+    </div>
+  </div>
+
+</div><!-- /dashboard -->
+
+<script>
+// =======================================================
+// DATA: TOCFL LEVEL 4–5 WORDS
+// =======================================================
+const WORDS = [
+  { zh:'態度', py:'tài dù', def:'attitude; manner; stance' },
+  { zh:'責任', py:'zé rèn', def:'responsibility; duty; obligation' },
+  { zh:'機會', py:'jī huì', def:'opportunity; chance' },
+  { zh:'決定', py:'jué dìng', def:'to decide; decision' },
+  { zh:'擔心', py:'dān xīn', def:'to worry; to be anxious' },
+  { zh:'影響', py:'yǐng xiǎng', def:'to influence; effect; impact' },
+  { zh:'目的', py:'mù dì', def:'purpose; aim; goal' },
+  { zh:'原因', py:'yuán yīn', def:'reason; cause' },
+  { zh:'結果', py:'jié guǒ', def:'result; outcome; consequence' },
+  { zh:'條件', py:'tiáo jiàn', def:'condition; terms; prerequisite' },
+  { zh:'方式', py:'fāng shì', def:'method; way; manner' },
+  { zh:'過程', py:'guò chéng', def:'process; course; procedure' },
+  { zh:'關係', py:'guān xi', def:'relationship; connection; relevance' },
+  { zh:'現象', py:'xiàn xiàng', def:'phenomenon; appearance; occurrence' },
+  { zh:'理由', py:'lǐ yóu', def:'reason; grounds; justification' },
+  { zh:'意義', py:'yì yì', def:'meaning; significance; value' },
+  { zh:'價值', py:'jià zhí', def:'value; worth' },
+  { zh:'目標', py:'mù biāo', def:'goal; target; objective' },
+  { zh:'標準', py:'biāo zhǔn', def:'standard; criterion; norm' },
+  { zh:'原則', py:'yuán zé', def:'principle; tenet' },
+  { zh:'規則', py:'guī zé', def:'rule; regulation' },
+  { zh:'基礎', py:'jī chǔ', def:'foundation; basis; fundamentals' },
+  { zh:'核心', py:'hé xīn', def:'core; nucleus; central' },
+  { zh:'本質', py:'běn zhí', def:'essence; nature; intrinsic quality' },
+  { zh:'理念', py:'lǐ niàn', def:'idea; concept; guiding philosophy' },
+  { zh:'信念', py:'xìn niàn', def:'belief; conviction; faith' },
+  { zh:'道德', py:'dào dé', def:'morality; ethics; virtue' },
+  { zh:'誠實', py:'chéng shí', def:'honest; truthful; sincere' },
+  { zh:'公平', py:'gōng píng', def:'fair; just; equitable' },
+  { zh:'正義', py:'zhèng yì', def:'justice; righteousness' },
+  { zh:'自由', py:'zì yóu', def:'freedom; liberty' },
+  { zh:'平等', py:'píng děng', def:'equality; equal' },
+  { zh:'民主', py:'mín zhǔ', def:'democracy; democratic' },
+  { zh:'尊重', py:'zūn zhòng', def:'to respect; to value; respect' },
+  { zh:'信任', py:'xìn rèn', def:'to trust; trust; confidence' },
+  { zh:'合作', py:'hé zuò', def:'to cooperate; cooperation' },
+  { zh:'競爭', py:'jìng zhēng', def:'to compete; competition' },
+  { zh:'矛盾', py:'máo dùn', def:'contradiction; conflict; contradictory' },
+  { zh:'平衡', py:'píng héng', def:'balance; equilibrium; to balance' },
+  { zh:'犧牲', py:'xī shēng', def:'to sacrifice; sacrifice' },
+  { zh:'承擔', py:'chéng dān', def:'to undertake; to bear (responsibility)' },
+  { zh:'妥協', py:'tuǒ xié', def:'to compromise; compromise' },
+  { zh:'堅持', py:'jiān chí', def:'to persist; to insist; persistence' },
+  { zh:'放棄', py:'fàng qì', def:'to give up; to abandon; to renounce' },
+  { zh:'追求', py:'zhuī qiú', def:'to pursue; pursuit' },
+  { zh:'實現', py:'shí xiàn', def:'to realize; to achieve; to fulfill' },
+  { zh:'克服', py:'kè fú', def:'to overcome; to conquer' },
+  { zh:'面對', py:'miàn duì', def:'to face; to confront' },
+  { zh:'依賴', py:'yī lài', def:'to depend on; reliance; dependence' },
+  { zh:'獨立', py:'dú lì', def:'independent; independence' },
+  { zh:'自信', py:'zì xìn', def:'self-confidence; confident' },
+  { zh:'勇氣', py:'yǒng qì', def:'courage; bravery' },
+  { zh:'毅力', py:'yì lì', def:'perseverance; willpower; determination' },
+  { zh:'智慧', py:'zhì huì', def:'wisdom; intelligence' },
+  { zh:'才能', py:'cái néng', def:'talent; ability; gift' },
+  { zh:'天賦', py:'tiān fù', def:'natural gift; innate talent' },
+  { zh:'修養', py:'xiū yǎng', def:'self-cultivation; culture; refinement' },
+  { zh:'性格', py:'xìng gé', def:'character; personality; temperament' },
+  { zh:'品德', py:'pǐn dé', def:'moral character; virtue' },
+  { zh:'人格', py:'rén gé', def:'personality; character; integrity' },
+  { zh:'氣質', py:'qì zhì', def:'temperament; disposition; bearing' },
+  { zh:'素質', py:'sù zhì', def:'inner quality; character; overall ability' },
+  { zh:'社會', py:'shè huì', def:'society; social' },
+  { zh:'經濟', py:'jīng jì', def:'economy; economic' },
+  { zh:'政治', py:'zhèng zhì', def:'politics; political' },
+  { zh:'文化', py:'wén huà', def:'culture; cultural' },
+  { zh:'歷史', py:'lì shǐ', def:'history; historical' },
+  { zh:'法律', py:'fǎ lǜ', def:'law; legal' },
+  { zh:'制度', py:'zhì dù', def:'system; institution; regime' },
+  { zh:'政策', py:'zhèng cè', def:'policy' },
+  { zh:'改革', py:'gǎi gé', def:'reform; to reform' },
+  { zh:'發展', py:'fā zhǎn', def:'development; to develop; growth' },
+  { zh:'進步', py:'jìn bù', def:'progress; to make progress; advance' },
+  { zh:'變化', py:'biàn huà', def:'change; transformation' },
+  { zh:'全球化', py:'quán qiú huà', def:'globalization' },
+  { zh:'現代化', py:'xiàn dài huà', def:'modernization; to modernize' },
+  { zh:'民族', py:'mín zú', def:'ethnic group; nationality; nation' },
+  { zh:'傳統', py:'chuán tǒng', def:'tradition; traditional; conventional' },
+  { zh:'習俗', py:'xí sú', def:'custom; tradition; convention' },
+  { zh:'觀念', py:'guān niàn', def:'concept; idea; notion; attitude' },
+  { zh:'意識', py:'yì shí', def:'consciousness; awareness; sense' },
+  { zh:'階層', py:'jiē céng', def:'social class; stratum; echelon' },
+  { zh:'貧窮', py:'pín qióng', def:'poverty; poor' },
+  { zh:'財富', py:'cái fù', def:'wealth; fortune; riches' },
+  { zh:'資源', py:'zī yuán', def:'resources; natural resources' },
+  { zh:'分配', py:'fēn pèi', def:'to distribute; distribution; allocation' },
+  { zh:'消費', py:'xiāo fèi', def:'to consume; consumption' },
+  { zh:'生產', py:'shēng chǎn', def:'to produce; production; output' },
+  { zh:'貿易', py:'mào yì', def:'trade; commerce' },
+  { zh:'投資', py:'tóu zī', def:'to invest; investment' },
+  { zh:'利益', py:'lì yì', def:'interest; benefit; profit' },
+  { zh:'損失', py:'sǔn shī', def:'loss; damage; to lose' },
+  { zh:'風險', py:'fēng xiǎn', def:'risk; danger' },
+  { zh:'機制', py:'jī zhì', def:'mechanism; system; regime' },
+  { zh:'體制', py:'tǐ zhì', def:'system; institution; structural setup' },
+  { zh:'權利', py:'quán lì', def:'right; privilege; entitlement' },
+  { zh:'義務', py:'yì wù', def:'obligation; duty' },
+  { zh:'秩序', py:'zhì xù', def:'order; discipline' },
+  { zh:'犯罪', py:'fàn zuì', def:'crime; to commit a crime; criminal' },
+  { zh:'腐敗', py:'fǔ bài', def:'corruption; decay; corrupt' },
+  { zh:'司法', py:'sī fǎ', def:'judicial; justice system' },
+  { zh:'民意', py:'mín yì', def:'public opinion; popular will' },
+  { zh:'選舉', py:'xuǎn jǔ', def:'election; to elect' },
+  { zh:'議會', py:'yì huì', def:'parliament; congress; assembly' },
+  { zh:'立法', py:'lì fǎ', def:'legislation; to legislate' },
+  { zh:'外交', py:'wài jiāo', def:'diplomacy; foreign affairs; diplomatic' },
+  { zh:'主權', py:'zhǔ quán', def:'sovereignty' },
+  { zh:'國際', py:'guó jì', def:'international' },
+  { zh:'協議', py:'xié yì', def:'agreement; accord; protocol' },
+  { zh:'談判', py:'tán pàn', def:'negotiation; to negotiate' },
+  { zh:'衝突', py:'chōng tú', def:'conflict; clash; to conflict' },
+  { zh:'戰爭', py:'zhàn zhēng', def:'war; warfare' },
+  { zh:'和平', py:'hé píng', def:'peace; peaceful' },
+  { zh:'統一', py:'tǒng yī', def:'unification; to unify; unified' },
+  { zh:'分裂', py:'fēn liè', def:'to split; to divide; division' },
+  { zh:'研究', py:'yán jiū', def:'research; to research; to study' },
+  { zh:'分析', py:'fēn xī', def:'to analyze; analysis' },
+  { zh:'理論', py:'lǐ lùn', def:'theory; theoretical' },
+  { zh:'概念', py:'gài niàn', def:'concept; notion; idea' },
+  { zh:'原理', py:'yuán lǐ', def:'principle; theory; fundamentals' },
+  { zh:'邏輯', py:'luó jí', def:'logic; logical' },
+  { zh:'假設', py:'jiǎ shè', def:'hypothesis; assumption; to suppose' },
+  { zh:'推論', py:'tuī lùn', def:'to reason; inference; deduction' },
+  { zh:'論點', py:'lùn diǎn', def:'argument; thesis; point of view' },
+  { zh:'觀點', py:'guān diǎn', def:'viewpoint; perspective; standpoint' },
+  { zh:'立場', py:'lì chǎng', def:'position; standpoint; stance' },
+  { zh:'反駁', py:'fǎn bó', def:'to refute; to rebut; to retort' },
+  { zh:'批判', py:'pī pàn', def:'critique; to criticize; critical analysis' },
+  { zh:'客觀', py:'kè guān', def:'objective; impartial' },
+  { zh:'主觀', py:'zhǔ guān', def:'subjective; one-sided' },
+  { zh:'抽象', py:'chōu xiàng', def:'abstract' },
+  { zh:'具體', py:'jù tǐ', def:'concrete; specific; particular' },
+  { zh:'統計', py:'tǒng jì', def:'statistics; to count; census' },
+  { zh:'數據', py:'shù jù', def:'data; figures; statistics' },
+  { zh:'調查', py:'diào chá', def:'to investigate; survey; investigation' },
+  { zh:'評估', py:'píng gū', def:'to evaluate; assessment; appraisal' },
+  { zh:'審查', py:'shěn chá', def:'to examine; to review; to audit' },
+  { zh:'判斷', py:'pàn duàn', def:'to judge; judgment; assessment' },
+  { zh:'推測', py:'tuī cè', def:'to speculate; speculation; conjecture' },
+  { zh:'驗證', py:'yàn zhèng', def:'to verify; to validate; verification' },
+  { zh:'說明', py:'shuō míng', def:'to explain; explanation; instruction' },
+  { zh:'論文', py:'lùn wén', def:'thesis; dissertation; academic paper' },
+  { zh:'著作', py:'zhù zuò', def:'work; writing; publication' },
+  { zh:'知識', py:'zhī shi', def:'knowledge' },
+  { zh:'學術', py:'xué shù', def:'academic; scholarship; academia' },
+  { zh:'培養', py:'péi yǎng', def:'to cultivate; to nurture; to develop' },
+  { zh:'訓練', py:'xùn liàn', def:'training; to train; to drill' },
+  { zh:'啟發', py:'qǐ fā', def:'to inspire; enlightenment; inspiration' },
+  { zh:'創新', py:'chuàng xīn', def:'innovation; to innovate; creative' },
+  { zh:'探索', py:'tàn suǒ', def:'to explore; exploration; to probe' },
+  { zh:'發現', py:'fā xiàn', def:'to discover; discovery' },
+  { zh:'認識', py:'rèn shi', def:'to know; understanding; cognition' },
+  { zh:'思維', py:'sī wéi', def:'thinking; thought; way of thinking' },
+  { zh:'見解', py:'jiàn jiě', def:'opinion; view; understanding' },
+  { zh:'領悟', py:'lǐng wù', def:'to comprehend; to understand; enlightenment' },
+  { zh:'污染', py:'wū rǎn', def:'pollution; to pollute; contamination' },
+  { zh:'生態', py:'shēng tài', def:'ecology; ecosystem; ecological' },
+  { zh:'氣候', py:'qì hòu', def:'climate; weather conditions' },
+  { zh:'溫室', py:'wēn shì', def:'greenhouse' },
+  { zh:'碳排放', py:'tàn pái fàng', def:'carbon emissions' },
+  { zh:'永續', py:'yǒng xù', def:'sustainable; sustainability' },
+  { zh:'保育', py:'bǎo yù', def:'conservation; to conserve; protection' },
+  { zh:'物種', py:'wù zhǒng', def:'species' },
+  { zh:'滅絕', py:'miè jué', def:'extinction; to become extinct' },
+  { zh:'森林', py:'sēn lín', def:'forest' },
+  { zh:'土地', py:'tǔ dì', def:'land; soil; territory' },
+  { zh:'海洋', py:'hǎi yáng', def:'ocean; sea' },
+  { zh:'河流', py:'hé liú', def:'river; rivers and streams' },
+  { zh:'山脈', py:'shān mài', def:'mountain range' },
+  { zh:'火山', py:'huǒ shān', def:'volcano' },
+  { zh:'地震', py:'dì zhèn', def:'earthquake' },
+  { zh:'颱風', py:'tái fēng', def:'typhoon' },
+  { zh:'洪水', py:'hóng shuǐ', def:'flood' },
+  { zh:'乾旱', py:'gān hàn', def:'drought' },
+  { zh:'沙漠', py:'shā mò', def:'desert' },
+  { zh:'冰川', py:'bīng chuān', def:'glacier; ice cap' },
+  { zh:'能源', py:'néng yuán', def:'energy; energy source' },
+  { zh:'再生能源', py:'zài shēng néng yuán', def:'renewable energy' },
+  { zh:'太陽能', py:'tài yáng néng', def:'solar energy' },
+  { zh:'風能', py:'fēng néng', def:'wind energy' },
+  { zh:'廢棄物', py:'fèi qì wù', def:'waste; refuse; garbage' },
+  { zh:'資源回收', py:'zī yuán huí shōu', def:'recycling; resource recovery' },
+  { zh:'野生動物', py:'yě shēng dòng wù', def:'wildlife; wild animals' },
+  { zh:'瀕危', py:'bīn wēi', def:'endangered; on the brink of danger' },
+  { zh:'棲息地', py:'qī xī dì', def:'habitat' },
+  { zh:'漁業', py:'yú yè', def:'fisheries; fishing industry' },
+  { zh:'農業', py:'nóng yè', def:'agriculture; farming' },
+  { zh:'自然災害', py:'zì rán zāi hài', def:'natural disaster' },
+  { zh:'生物多樣性', py:'shēng wù duō yàng xìng', def:'biodiversity' },
+  { zh:'臭氧層', py:'chòu yǎng céng', def:'ozone layer' },
+  { zh:'疾病', py:'jí bìng', def:'disease; illness; sickness' },
+  { zh:'症狀', py:'zhèng zhuàng', def:'symptom; sign of illness' },
+  { zh:'診斷', py:'zhěn duàn', def:'to diagnose; diagnosis' },
+  { zh:'治療', py:'zhì liáo', def:'to treat; treatment; therapy' },
+  { zh:'手術', py:'shǒu shù', def:'surgery; operation' },
+  { zh:'藥物', py:'yào wù', def:'drug; medicine; medication' },
+  { zh:'副作用', py:'fù zuò yòng', def:'side effect' },
+  { zh:'免疫', py:'miǎn yì', def:'immune; immunity' },
+  { zh:'疫苗', py:'yì miáo', def:'vaccine; vaccination' },
+  { zh:'傳染', py:'chuán rǎn', def:'to infect; contagious; transmission' },
+  { zh:'感染', py:'gǎn rǎn', def:'infection; to be infected' },
+  { zh:'慢性病', py:'màn xìng bìng', def:'chronic disease' },
+  { zh:'癌症', py:'ái zhèng', def:'cancer' },
+  { zh:'高血壓', py:'gāo xuè yā', def:'hypertension; high blood pressure' },
+  { zh:'糖尿病', py:'táng niào bìng', def:'diabetes' },
+  { zh:'心理健康', py:'xīn lǐ jiàn kāng', def:'mental health' },
+  { zh:'精神', py:'jīng shén', def:'spirit; mental; mind; energy' },
+  { zh:'壓力', py:'yā lì', def:'pressure; stress' },
+  { zh:'焦慮', py:'jiāo lǜ', def:'anxiety; to be anxious; worried' },
+  { zh:'憂鬱', py:'yōu yù', def:'depression; melancholy' },
+  { zh:'康復', py:'kāng fù', def:'to recover; convalescence; rehabilitation' },
+  { zh:'醫療', py:'yī liáo', def:'medical treatment; medical care' },
+  { zh:'保健', py:'bǎo jiàn', def:'health care; health maintenance' },
+  { zh:'預防', py:'yù fáng', def:'to prevent; prevention; prophylaxis' },
+  { zh:'衛生', py:'wèi shēng', def:'hygiene; sanitation; public health' },
+  { zh:'營養', py:'yíng yǎng', def:'nutrition; nourishment; nutritional' },
+  { zh:'均衡', py:'jūn héng', def:'balanced; equilibrium; proportional' },
+  { zh:'飲食', py:'yǐn shí', def:'diet; food and drink; eating habits' },
+  { zh:'作息', py:'zuò xī', def:'daily routine; work and rest schedule' },
+  { zh:'失眠', py:'shī mián', def:'insomnia; sleeplessness' },
+  { zh:'老化', py:'lǎo huà', def:'aging; to age; to deteriorate' },
+  { zh:'壽命', py:'shòu mìng', def:'lifespan; life expectancy; longevity' },
+  { zh:'遺傳', py:'yí chuán', def:'genetics; heredity; to inherit genetically' },
+  { zh:'基因', py:'jī yīn', def:'gene; genetic' },
+  { zh:'細胞', py:'xì bāo', def:'cell (biology)' },
+  { zh:'科技', py:'kē jì', def:'technology; science and technology' },
+  { zh:'人工智慧', py:'rén gōng zhì huì', def:'artificial intelligence; AI' },
+  { zh:'數位', py:'shù wèi', def:'digital' },
+  { zh:'網路', py:'wǎng lù', def:'internet; network' },
+  { zh:'平台', py:'píng tái', def:'platform' },
+  { zh:'應用程式', py:'yìng yòng chéng shì', def:'application; app' },
+  { zh:'資訊', py:'zī xùn', def:'information; data' },
+  { zh:'演算法', py:'yǎn suàn fǎ', def:'algorithm' },
+  { zh:'大數據', py:'dà shù jù', def:'big data' },
+  { zh:'雲端', py:'yún duān', def:'cloud (computing)' },
+  { zh:'自動化', py:'zì dòng huà', def:'automation; to automate' },
+  { zh:'機器人', py:'jī qì rén', def:'robot' },
+  { zh:'虛擬實境', py:'xū nǐ shí jìng', def:'virtual reality; VR' },
+  { zh:'創業', py:'chuàng yè', def:'to start a business; entrepreneurship' },
+  { zh:'效率', py:'xiào lǜ', def:'efficiency; efficient' },
+  { zh:'生產力', py:'shēng chǎn lì', def:'productivity' },
+  { zh:'競爭力', py:'jìng zhēng lì', def:'competitiveness; competitive strength' },
+  { zh:'全球', py:'quán qiú', def:'global; worldwide; the whole world' },
+  { zh:'跨國', py:'kuà guó', def:'multinational; transnational; cross-border' },
+  { zh:'隱私', py:'yǐn sī', def:'privacy' },
+  { zh:'資安', py:'zī ān', def:'cybersecurity; information security' },
+  { zh:'駭客', py:'hài kè', def:'hacker' },
+  { zh:'詐騙', py:'zhà piàn', def:'fraud; to defraud; scam' },
+  { zh:'監控', py:'jiān kòng', def:'surveillance; to monitor' },
+  { zh:'媒體', py:'méi tǐ', def:'media' },
+  { zh:'新聞', py:'xīn wén', def:'news; news report' },
+  { zh:'報導', py:'bào dǎo', def:'to report; news report; coverage' },
+  { zh:'輿論', py:'yú lùn', def:'public opinion' },
+  { zh:'社群媒體', py:'shè qún méi tǐ', def:'social media' },
+  { zh:'革新', py:'gé xīn', def:'innovation; reform; to innovate' },
+  { zh:'突破', py:'tū pò', def:'breakthrough; to break through' },
+  { zh:'網際網路', py:'wǎng jì wǎng lù', def:'the internet; the World Wide Web' },
+  { zh:'電子商務', py:'diàn zǐ shāng wù', def:'e-commerce; electronic commerce' },
+  { zh:'遠距工作', py:'yuǎn jù gōng zuò', def:'remote work; telecommuting' },
+  { zh:'人機互動', py:'rén jī hù dòng', def:'human-computer interaction' },
+  { zh:'情緒', py:'qíng xù', def:'emotion; mood; feelings' },
+  { zh:'感受', py:'gǎn shòu', def:'feeling; to feel; to experience' },
+  { zh:'體會', py:'tǐ huì', def:'to realize; to appreciate through experience' },
+  { zh:'感動', py:'gǎn dòng', def:'to be moved; moving; touching' },
+  { zh:'感激', py:'gǎn jī', def:'to be grateful; gratitude; thankful' },
+  { zh:'珍惜', py:'zhēn xī', def:'to cherish; to treasure; to value' },
+  { zh:'後悔', py:'hòu huǐ', def:'to regret; regret' },
+  { zh:'遺憾', py:'yí hàn', def:'regret; pity; to be sorry' },
+  { zh:'驕傲', py:'jiāo ào', def:'proud; arrogant; pride' },
+  { zh:'謙虛', py:'qiān xū', def:'humble; modest; humility' },
+  { zh:'羨慕', py:'xiàn mù', def:'to envy; to admire; admiration' },
+  { zh:'嫉妒', py:'jí dù', def:'jealousy; envy; to be jealous' },
+  { zh:'憤怒', py:'fèn nù', def:'anger; rage; fury; furious' },
+  { zh:'委屈', py:'wěi qu', def:'to feel wronged; grievance; injustice' },
+  { zh:'沮喪', py:'jǔ sàng', def:'depressed; dejected; discouraged' },
+  { zh:'失落', py:'shī luò', def:'disappointed; sense of loss; deflated' },
+  { zh:'空虛', py:'kōng xū', def:'empty; hollow; a feeling of emptiness' },
+  { zh:'孤獨', py:'gū dú', def:'lonely; solitude; alone' },
+  { zh:'寂寞', py:'jì mò', def:'lonely; lonesome; feeling of loneliness' },
+  { zh:'思念', py:'sī niàn', def:'to miss; to long for; yearning' },
+  { zh:'懷念', py:'huái niàn', def:'to cherish the memory of; to miss' },
+  { zh:'渴望', py:'kě wàng', def:'to yearn for; to crave; longing' },
+  { zh:'期待', py:'qī dài', def:'to look forward to; to expect; expectation' },
+  { zh:'失望', py:'shī wàng', def:'disappointed; to disappoint; disappointment' },
+  { zh:'絕望', py:'jué wàng', def:'desperate; hopeless; despair' },
+  { zh:'興奮', py:'xīng fèn', def:'excited; excitement; to excite' },
+  { zh:'喜悅', py:'xǐ yuè', def:'joy; delight; happy' },
+  { zh:'滿足', py:'mǎn zú', def:'satisfied; satisfaction; to satisfy' },
+  { zh:'安慰', py:'ān wèi', def:'to comfort; comfort; consolation' },
+  { zh:'同情', py:'tóng qíng', def:'sympathy; compassion; to sympathize' },
+  { zh:'包容', py:'bāo róng', def:'to tolerate; tolerance; inclusive' },
+  { zh:'寬容', py:'kuān róng', def:'tolerance; lenient; to forgive' },
+  { zh:'感恩', py:'gǎn ēn', def:'gratitude; to be thankful' },
+  { zh:'懊悔', py:'ào huǐ', def:'remorse; to regret deeply' },
+  { zh:'掙扎', py:'zhēng zhá', def:'to struggle; to wrestle; struggle' },
+  { zh:'徬徨', py:'páng huáng', def:'to hesitate; to wander; perplexed' },
+  { zh:'憧憬', py:'chōng jǐng', def:'aspiration; to look forward to; yearning' },
+  { zh:'嚮往', py:'xiàng wǎng', def:'to yearn for; to long for; aspiration' },
+  { zh:'渴求', py:'kě qiú', def:'to thirst for; to eagerly seek' },
+  { zh:'抱負', py:'bào fù', def:'aspiration; ambition; lofty aspiration' },
+  { zh:'文學', py:'wén xué', def:'literature; literary' },
+  { zh:'詩歌', py:'shī gē', def:'poetry; poem and song' },
+  { zh:'散文', py:'sǎn wén', def:'prose; essay' },
+  { zh:'小說', py:'xiǎo shuō', def:'novel; fiction' },
+  { zh:'戲劇', py:'xì jù', def:'drama; theater; play' },
+  { zh:'藝術', py:'yì shù', def:'art; artistic' },
+  { zh:'繪畫', py:'huì huà', def:'painting; to draw or paint' },
+  { zh:'雕塑', py:'diāo sù', def:'sculpture' },
+  { zh:'攝影', py:'shè yǐng', def:'photography; to photograph' },
+  { zh:'舞蹈', py:'wǔ dǎo', def:'dance; dancing' },
+  { zh:'建築', py:'jiàn zhù', def:'architecture; building; construction' },
+  { zh:'設計', py:'shè jì', def:'design; to design' },
+  { zh:'美學', py:'měi xué', def:'aesthetics; the study of beauty' },
+  { zh:'風格', py:'fēng gé', def:'style; manner; genre' },
+  { zh:'創作', py:'chuàng zuò', def:'creative work; to create; creation' },
+  { zh:'靈感', py:'líng gǎn', def:'inspiration; muse' },
+  { zh:'想像力', py:'xiǎng xiàng lì', def:'imagination' },
+  { zh:'表達', py:'biǎo dá', def:'to express; expression; to convey' },
+  { zh:'象徵', py:'xiàng zhēng', def:'to symbolize; symbol; symbolism' },
+  { zh:'比喻', py:'bǐ yù', def:'metaphor; analogy; to compare' },
+  { zh:'諷刺', py:'fěng cì', def:'satire; to satirize; irony; sarcasm' },
+  { zh:'批評', py:'pī píng', def:'criticism; critique; to criticize' },
+  { zh:'欣賞', py:'xīn shǎng', def:'to appreciate; to enjoy; appreciation' },
+  { zh:'品味', py:'pǐn wèi', def:'taste; to savor; aesthetic sense' },
+  { zh:'傳承', py:'chuán chéng', def:'to inherit; cultural inheritance; to pass on' },
+  { zh:'古典', py:'gǔ diǎn', def:'classical; classic' },
+  { zh:'當代', py:'dāng dài', def:'contemporary; present-day' },
+  { zh:'前衛', py:'qián wèi', def:'avant-garde; vanguard' },
+  { zh:'主流', py:'zhǔ liú', def:'mainstream' },
+  { zh:'亞文化', py:'yà wén huà', def:'subculture' },
+  { zh:'戲曲', py:'xì qǔ', def:'traditional Chinese opera' },
+  { zh:'書法', py:'shū fǎ', def:'calligraphy' },
+  { zh:'民俗', py:'mín sú', def:'folk customs; folklore; popular tradition' },
+  { zh:'信仰', py:'xìn yǎng', def:'faith; belief; to believe in' },
+  { zh:'宗教', py:'zōng jiào', def:'religion; religious' },
+  { zh:'歷程', py:'lì chéng', def:'course; process; journey through history' },
+  { zh:'階段', py:'jiē duàn', def:'stage; phase; period' },
+  { zh:'轉變', py:'zhuǎn biàn', def:'transformation; change; to transform' },
+  { zh:'演變', py:'yǎn biàn', def:'evolution; to evolve; to change over time' },
+  { zh:'趨勢', py:'qū shì', def:'trend; tendency' },
+  { zh:'潮流', py:'cháo liú', def:'trend; current; mainstream movement' },
+  { zh:'轉機', py:'zhuǎn jī', def:'turning point; chance for improvement' },
+  { zh:'契機', py:'qì jī', def:'opportunity; turning point; favorable moment' },
+  { zh:'時機', py:'shí jī', def:'right time; opportunity; favorable moment' },
+  { zh:'過渡', py:'guò dù', def:'transition; to transition; provisional' },
+  { zh:'延續', py:'yán xù', def:'continuation; to continue; to extend' },
+  { zh:'持續', py:'chí xù', def:'to continue; sustainable; ongoing; sustained' },
+  { zh:'逐漸', py:'zhú jiàn', def:'gradually; step by step' },
+  { zh:'終究', py:'zhōng jiū', def:'ultimately; in the end; after all' },
+  { zh:'畢竟', py:'bì jìng', def:'after all; when all is said and done' },
+  { zh:'何況', py:'hé kuàng', def:'let alone; much less; moreover' },
+  { zh:'儘管', py:'jǐn guǎn', def:'even though; despite; in spite of' },
+  { zh:'否則', py:'fǒu zé', def:'otherwise; or else; if not' },
+  { zh:'即使', py:'jí shǐ', def:'even if; even though' },
+  { zh:'既然', py:'jì rán', def:'since; now that; given that' },
+  { zh:'一旦', py:'yī dàn', def:'once; in case; if ever; as soon as' },
+  { zh:'況且', py:'kuàng qiě', def:'moreover; besides; what\'s more' },
+  { zh:'反而', py:'fǎn ér', def:'instead; on the contrary; but actually' },
+  { zh:'從而', py:'cóng ér', def:'thus; thereby; and so' },
+  { zh:'以致', py:'yǐ zhì', def:'so that; as a result; to the point that' },
+  { zh:'克制', py:'kè zhì', def:'to restrain; self-control; to suppress' },
+  { zh:'調整', py:'diào zhěng', def:'to adjust; adjustment; to regulate' },
+  { zh:'處理', py:'chǔ lǐ', def:'to handle; to deal with; to manage' },
+  { zh:'協調', py:'xié tiáo', def:'to coordinate; coordination; to harmonize' },
+  { zh:'溝通', py:'gōu tōng', def:'to communicate; communication' },
+  { zh:'協商', py:'xié shāng', def:'to negotiate; to consult; consultation' },
+  { zh:'應對', py:'yìng duì', def:'to respond to; to cope with; to deal with' },
+  { zh:'採取', py:'cǎi qǔ', def:'to adopt; to take (measures); to employ' },
+  { zh:'促進', py:'cù jìn', def:'to promote; to facilitate; to advance' },
+  { zh:'推動', py:'tuī dòng', def:'to promote; to drive; to push forward' },
+  { zh:'推廣', py:'tuī guǎng', def:'to promote; to spread; to popularize' },
+  { zh:'提升', py:'tí shēng', def:'to improve; to raise; to enhance' },
+  { zh:'加強', py:'jiā qiáng', def:'to strengthen; to reinforce; to intensify' },
+  { zh:'擴大', py:'kuò dà', def:'to expand; to enlarge; to extend' },
+  { zh:'整合', py:'zhěng hé', def:'to integrate; to consolidate; integration' },
+  { zh:'結合', py:'jié hé', def:'to combine; to integrate; combination' },
+  { zh:'區分', py:'qū fēn', def:'to distinguish; to differentiate' },
+  { zh:'辨別', py:'biàn bié', def:'to distinguish; to identify; to discriminate' },
+  { zh:'衡量', py:'héng liáng', def:'to weigh; to measure; to evaluate' },
+  { zh:'考量', py:'kǎo liáng', def:'to consider; consideration; to weigh' },
+  { zh:'斟酌', py:'zhēn zhuó', def:'to consider carefully; to deliberate' },
+  { zh:'商議', py:'shāng yì', def:'to discuss; to deliberate; to consult' },
+  { zh:'策劃', py:'cè huà', def:'to plan; to organize; to mastermind' },
+  { zh:'部署', py:'bù shǔ', def:'to deploy; to arrange; deployment' },
+  { zh:'執行', py:'zhí xíng', def:'to execute; to implement; execution' },
+  { zh:'落實', py:'luò shí', def:'to implement; to put into practice' },
+  { zh:'貫徹', py:'guàn chè', def:'to carry out; to implement; to see through' },
+  { zh:'維護', py:'wéi hù', def:'to maintain; to safeguard; to uphold' },
+  { zh:'捍衛', py:'hàn wèi', def:'to defend; to safeguard; to protect' },
+  { zh:'鞏固', py:'gǒng gù', def:'to consolidate; to strengthen; to reinforce' },
+  { zh:'確保', py:'què bǎo', def:'to ensure; to guarantee; to make certain' },
+  { zh:'保障', py:'bǎo zhàng', def:'to guarantee; to ensure; guarantee' },
+  { zh:'制約', py:'zhì yuē', def:'to constrain; to restrict; constraint' },
+  { zh:'超越', py:'chāo yuè', def:'to transcend; to surpass; to go beyond' },
+  { zh:'顛覆', py:'diān fù', def:'to overturn; to subvert; to topple' },
+  { zh:'振興', py:'zhèn xīng', def:'to revitalize; to rejuvenate' },
+  { zh:'衰退', py:'shuāi tuì', def:'to decline; recession; to deteriorate' },
+  { zh:'崩潰', py:'bēng kuì', def:'to collapse; breakdown; to fall apart' },
+  { zh:'彌補', py:'mí bǔ', def:'to make up for; to compensate; to remedy' },
+  { zh:'矯正', py:'jiǎo zhèng', def:'to correct; to rectify; correction' },
+  { zh:'複雜', py:'fù zá', def:'complex; complicated' },
+  { zh:'精確', py:'jīng què', def:'precise; accurate; exact' },
+  { zh:'模糊', py:'mó hú', def:'vague; blurry; fuzzy; ambiguous' },
+  { zh:'明確', py:'míng què', def:'clear; definite; explicit; unambiguous' },
+  { zh:'潛在', py:'qián zài', def:'potential; latent; underlying' },
+  { zh:'顯著', py:'xiǎn zhù', def:'significant; notable; conspicuous' },
+  { zh:'重大', py:'zhòng dà', def:'significant; major; important; serious' },
+  { zh:'微妙', py:'wēi miào', def:'subtle; delicate; nuanced' },
+  { zh:'深刻', py:'shēn kè', def:'profound; deep; incisive' },
+  { zh:'廣泛', py:'guǎng fàn', def:'extensive; widespread; wide-ranging' },
+  { zh:'有限', py:'yǒu xiàn', def:'limited; finite' },
+  { zh:'無限', py:'wú xiàn', def:'unlimited; infinite' },
+  { zh:'特定', py:'tè dìng', def:'specific; particular; designated' },
+  { zh:'普遍', py:'pǔ biàn', def:'universal; widespread; prevalent' },
+  { zh:'絕對', py:'jué duì', def:'absolute; definitely; absolutely' },
+  { zh:'相對', py:'xiāng duì', def:'relative; relatively; by comparison' },
+  { zh:'必要', py:'bì yào', def:'necessary; essential; indispensable' },
+  { zh:'充分', py:'chōng fèn', def:'sufficient; adequate; fully' },
+  { zh:'有效', py:'yǒu xiào', def:'effective; valid; in effect' },
+  { zh:'積極', py:'jī jí', def:'positive; active; proactive; enthusiastic' },
+  { zh:'消極', py:'xiāo jí', def:'negative; passive; pessimistic' },
+  { zh:'合理', py:'hé lǐ', def:'reasonable; rational; justifiable' },
+  { zh:'合法', py:'hé fǎ', def:'legal; lawful; legitimate' },
+  { zh:'徹底', py:'chè dǐ', def:'thorough; complete; radical; thoroughly' },
+  { zh:'片面', py:'piàn miàn', def:'one-sided; partial; unilateral' },
+  { zh:'全面', py:'quán miàn', def:'comprehensive; all-round; thorough' },
+  { zh:'長遠', py:'cháng yuǎn', def:'long-term; far-reaching' },
+  { zh:'短暫', py:'duǎn zàn', def:'brief; temporary; transient' },
+  { zh:'永久', py:'yǒng jiǔ', def:'permanent; perpetual; forever' },
+  { zh:'暫時', py:'zàn shí', def:'temporary; for the time being; provisional' },
+  { zh:'可行', py:'kě xíng', def:'feasible; practicable; workable' },
+  { zh:'務實', py:'wù shí', def:'pragmatic; practical; down-to-earth' },
+  { zh:'虛偽', py:'xū wèi', def:'hypocritical; false; insincere' },
+  { zh:'正當', py:'zhèng dàng', def:'legitimate; proper; justifiable; rightful' },
+  { zh:'非法', py:'fēi fǎ', def:'illegal; unlawful; illicit' },
+  { zh:'闡述', py:'chǎn shù', def:'to elaborate; to expound; to explain in detail' },
+  { zh:'詮釋', py:'quán shì', def:'to interpret; explanation; annotation' },
+  { zh:'感悟', py:'gǎn wù', def:'realization; enlightenment; to have an insight' },
+  { zh:'頓悟', py:'dùn wù', def:'sudden enlightenment; epiphany' },
+  { zh:'省思', py:'xǐng sī', def:'introspection; to reflect; self-examination' },
+  { zh:'反思', py:'fǎn sī', def:'to reflect; reflection; critical reflection' },
+  { zh:'深思', py:'shēn sī', def:'to contemplate; deep thought; meditation' },
+  { zh:'沉思', py:'chén sī', def:'to meditate; to ponder; contemplation' },
+  { zh:'志向', py:'zhì xiàng', def:'aspiration; ambition; life goal' },
+  { zh:'使命', py:'shǐ mìng', def:'mission; calling; mandate' },
+  { zh:'凝聚', py:'níng jù', def:'to cohere; to unite; to concentrate' },
+  { zh:'融合', py:'róng hé', def:'to blend; to fuse; integration; fusion' },
+  { zh:'排斥', py:'pái chì', def:'to repel; to exclude; rejection' },
+  { zh:'歧視', py:'qí shì', def:'discrimination; to discriminate against' },
+  { zh:'偏見', py:'piān jiàn', def:'prejudice; bias; preconceived ideas' },
+  { zh:'刻板印象', py:'kè bǎn yìn xiàng', def:'stereotype' },
+  { zh:'寬恕', py:'kuān shù', def:'to forgive; forgiveness; to pardon' },
+  { zh:'原諒', py:'yuán liàng', def:'to forgive; to pardon; forgiveness' },
+  { zh:'報復', py:'bào fù', def:'revenge; to retaliate; retribution' },
+  { zh:'懲罰', py:'chéng fá', def:'to punish; punishment; penalty' },
+  { zh:'賠償', py:'péi cháng', def:'compensation; to compensate; to make amends' },
+  { zh:'剝削', py:'bō xuē', def:'to exploit; exploitation' },
+  { zh:'壓迫', py:'yā pò', def:'oppression; to oppress; to suppress' },
+  { zh:'解放', py:'jiě fàng', def:'liberation; to liberate; to free' },
+  { zh:'啟蒙', py:'qǐ méng', def:'enlightenment; to enlighten; to educate' },
+  { zh:'覺醒', py:'jué xǐng', def:'awakening; to awaken; to become aware' },
+  { zh:'革命', py:'gé mìng', def:'revolution; revolutionary' },
+  { zh:'繁榮', py:'fán róng', def:'prosperous; flourishing; prosperity' },
+  { zh:'蓬勃', py:'péng bó', def:'vigorous; thriving; flourishing' },
+  { zh:'衰落', py:'shuāi luò', def:'to decline; to fall; decline' },
+  { zh:'分化', py:'fēn huà', def:'differentiation; to divide; to stratify' },
+  { zh:'強化', py:'qiáng huà', def:'to strengthen; to reinforce; to intensify' },
+  { zh:'深化', py:'shēn huà', def:'to deepen; to intensify; to strengthen' },
+  { zh:'淡化', py:'dàn huà', def:'to downplay; to water down; to dilute' },
+  { zh:'演化', py:'yǎn huà', def:'evolution; to evolve; evolutionary change' },
+];
+
+// =======================================================
+// DATA: STOIC QUOTES
+// =======================================================
+const QUOTES = [
+  // MARCUS AURELIUS
+  { t:'You have power over your mind — not outside events. Realize this, and you will find strength.', a:'Marcus Aurelius' },
+  { t:'The impediment to action advances action. What stands in the way becomes the way.', a:'Marcus Aurelius' },
+  { t:'Waste no more time arguing about what a good man should be. Be one.', a:'Marcus Aurelius' },
+  { t:'Very little is needed to make a happy life; it is all within yourself, in your way of thinking.', a:'Marcus Aurelius' },
+  { t:'It is not death that a man should fear, but he should fear never beginning to live.', a:'Marcus Aurelius' },
+  { t:'If it is not right, do not do it; if it is not true, do not say it.', a:'Marcus Aurelius' },
+  { t:'Accept the things to which fate binds you, and love the people with whom fate brings you together.', a:'Marcus Aurelius' },
+  { t:'The best revenge is to be unlike him who performed the injury.', a:'Marcus Aurelius' },
+  { t:'How much more grievous are the consequences of anger than the causes of it.', a:'Marcus Aurelius' },
+  { t:'Never let the future disturb you. You will meet it with the same weapons of reason which today arm you against the present.', a:'Marcus Aurelius' },
+  { t:'The object of life is not to be on the side of the majority, but to escape finding oneself in the ranks of the insane.', a:'Marcus Aurelius' },
+  { t:'Confine yourself to the present.', a:'Marcus Aurelius' },
+  { t:'The happiness of your life depends upon the quality of your thoughts.', a:'Marcus Aurelius' },
+  { t:'The universe is transformation; life is opinion.', a:'Marcus Aurelius' },
+  { t:'Look within. Within is the fountain of good, and it will ever bubble up if you will ever dig.', a:'Marcus Aurelius' },
+  { t:'The first rule is to keep an untroubled spirit. The second is to look things in the face and know them for what they are.', a:'Marcus Aurelius' },
+  { t:'Think of yourself as dead. You have lived your life. Now take what\'s left and live it properly.', a:'Marcus Aurelius' },
+  { t:'Choose not to be harmed — and you won\'t feel harmed. Don\'t feel harmed — and you haven\'t been.', a:'Marcus Aurelius' },
+  { t:'You could leave life right now. Let that determine what you do and say and think.', a:'Marcus Aurelius' },
+  { t:'Be tolerant with others and strict with yourself.', a:'Marcus Aurelius' },
+  { t:'The soul becomes dyed with the colour of its thoughts.', a:'Marcus Aurelius' },
+  { t:'Never esteem anything as of advantage to you that will make you break your word or lose your self-respect.', a:'Marcus Aurelius' },
+  { t:'Whatever happens to you has been waiting to happen since the beginning of time.', a:'Marcus Aurelius' },
+  { t:'Our life is what our thoughts make it.', a:'Marcus Aurelius' },
+  { t:'Receive without pride, relinquish without struggle.', a:'Marcus Aurelius' },
+  { t:'Loss is nothing else but change, and change is Nature\'s delight.', a:'Marcus Aurelius' },
+  { t:'When you rise in the morning, think of what a precious privilege it is to be alive — to breathe, to think, to enjoy, to love.', a:'Marcus Aurelius' },
+  { t:'A man must stand erect, not be kept erect by others.', a:'Marcus Aurelius' },
+  { t:'If someone is able to show me that what I think or do is not right, I will happily change, for I seek the truth, which has never injured anyone.', a:'Marcus Aurelius' },
+  { t:'Do not waste what remains of your life in speculating about your neighbors, unless it has to do with some common good.', a:'Marcus Aurelius' },
+  { t:'To bear trials with a calm mind robs misfortune of its strength and burden.', a:'Marcus Aurelius' },
+  { t:'Be like the cliff against which the waves continually break; it stands firm and tames the fury of the water around it.', a:'Marcus Aurelius' },
+  { t:'The tranquility that comes when you stop caring what they say. Or think. Or do.', a:'Marcus Aurelius' },
+  { t:'What injures the hive injures the bee.', a:'Marcus Aurelius' },
+  { t:'Treat what you don\'t have as nonexistent.', a:'Marcus Aurelius' },
+  { t:'Perfection of character: to live each day as if it were your last, without frenzy, without apathy, without pretense.', a:'Marcus Aurelius' },
+  { t:'Do every act of your life as though it were the very last act of your life.', a:'Marcus Aurelius' },
+  { t:'Nowhere can man find a quieter or more untroubled retreat than in his own soul.', a:'Marcus Aurelius' },
+  { t:'Dwell on the beauty of life. Watch the stars, and see yourself running with them.', a:'Marcus Aurelius' },
+  { t:'Let not your mind run on what you lack as much as on what you have already.', a:'Marcus Aurelius' },
+  { t:'Do not indulge in dreams of what you have not, but count up the chief of the blessings you do possess.', a:'Marcus Aurelius' },
+  { t:'We ought to do good to others as simply as a horse runs, or a bee makes honey, or a vine bears grapes season after season.', a:'Marcus Aurelius' },
+  { t:'Nothing happens to any man that he is not formed by nature to bear.', a:'Marcus Aurelius' },
+  { t:'Keep in mind how fast things pass by and are gone — those that are now, and those to come.', a:'Marcus Aurelius' },
+  { t:'The art of living is more like wrestling than dancing, in that it stands ready against the accidental and the unforeseen.', a:'Marcus Aurelius' },
+  { t:'It never ceases to amaze me: we all love ourselves more than other people, but care more about their opinion than our own.', a:'Marcus Aurelius' },
+  { t:'The mind in itself has no needs, except for those it creates itself.', a:'Marcus Aurelius' },
+  { t:'Do not act as if you had ten thousand years to live.', a:'Marcus Aurelius' },
+  { t:'You always own the option of having no opinion. There is never any need to get worked up about things you can\'t control.', a:'Marcus Aurelius' },
+  { t:'Men exist for the sake of one another. Teach them then, or bear with them.', a:'Marcus Aurelius' },
+  { t:'Even if you were to live three thousand more years, remember that no one lives any longer than they live now.', a:'Marcus Aurelius' },
+  { t:'How ridiculous and unrealistic is the man who is astonished at anything that happens in life.', a:'Marcus Aurelius' },
+  { t:'If you are distressed by anything external, the pain is not due to the thing itself, but to your estimate of it; and this you have the power to revoke at any moment.', a:'Marcus Aurelius' },
+  { t:'Discard all resentment against others, and even against yourself.', a:'Marcus Aurelius' },
+  { t:'Observe always that everything is the result of change, and get used to thinking that there is nothing Nature loves so well as to change existing forms.', a:'Marcus Aurelius' },
+  { t:'Dig within. There lies the well-spring of good: ever dig, and it will ever flow.', a:'Marcus Aurelius' },
+  { t:'Let no act be done without a purpose.', a:'Marcus Aurelius' },
+  { t:'All things are opinion, and opinion is in our power.', a:'Marcus Aurelius' },
+  { t:'Give yourself a gift: the present moment.', a:'Marcus Aurelius' },
+  { t:'Take full account of the excellences you possess, and in gratitude remember how you would long for them if you did not have them.', a:'Marcus Aurelius' },
+  { t:'A little while and you will have forgotten everything; a little while and everything will have forgotten you.', a:'Marcus Aurelius' },
+  { t:'He who lives in harmony with himself lives in harmony with the universe.', a:'Marcus Aurelius' },
+  { t:'In the morning when you rise unwillingly, let this thought be present: I rise to do the work of a human being.', a:'Marcus Aurelius' },
+  { t:'How unsound and insincere is he who says, "I intend to deal with you honestly." What is the need of this profession? The thing will show itself.', a:'Marcus Aurelius' },
+  { t:'The universe is change. Life is perception.', a:'Marcus Aurelius' },
+  { t:'Reject your sense of injury and the injury itself disappears.', a:'Marcus Aurelius' },
+  { t:'A man\'s life is a mere moment, his existence a flux, his perception clouded, his body\'s composition corruptible.', a:'Marcus Aurelius' },
+  { t:'Nothing is so conducive to greatness of mind as the ability to examine systematically and honestly everything that meets you in life.', a:'Marcus Aurelius' },
+  { t:'You have power to strip away many superfluous troubles which exist entirely in your own imagination.', a:'Marcus Aurelius' },
+  { t:'Never let the future disturb you; you will meet it, if you must, with the same weapons of reason which today arm you against the present.', a:'Marcus Aurelius' },
+  { t:'How soon will you be ashes or bare bones, and either a name or not even a name.', a:'Marcus Aurelius' },
+  { t:'The only wealth which you will keep forever is the wisdom you have given away.', a:'Marcus Aurelius' },
+  { t:'Anger: an acid that can do more harm to the vessel in which it is stored than to anything on which it is poured.', a:'Marcus Aurelius' },
+  { t:'Nothing is worth doing pointlessly.', a:'Marcus Aurelius' },
+  { t:'Nowhere can you find more complete rest than in a receptive and well-ordered mind.', a:'Marcus Aurelius' },
+  { t:'To have contemplated human life for forty years is the same as to have contemplated it for ten thousand years.', a:'Marcus Aurelius' },
+  { t:'Limit your activities to what reason demands.', a:'Marcus Aurelius' },
+  { t:'Not to feel exasperated or defeated or despondent because your days are not packed with wise and moral actions.', a:'Marcus Aurelius' },
+  { t:'In the same degree that a man\'s mind is nearer to freedom from all passion, in the same degree also is it nearer to strength.', a:'Marcus Aurelius' },
+  { t:'The best answer to anger is silence.', a:'Marcus Aurelius' },
+  { t:'Every living being is related to every other living being.', a:'Marcus Aurelius' },
+  { t:'The present moment always will have been.', a:'Marcus Aurelius' },
+  { t:'Misfortune nobly borne is good fortune.', a:'Marcus Aurelius' },
+  { t:'To live a good life: we have the potential for it. If we can learn to be indifferent to what makes no difference.', a:'Marcus Aurelius' },
+  { t:'Waste no more time arguing what a good man should be.', a:'Marcus Aurelius' },
+  { t:'Nothing harmonizes with me, save what harmonizes with thee, O Nature.', a:'Marcus Aurelius' },
+  // SENECA
+  { t:'He who fears death will never do anything worthy of a man who is alive.', a:'Seneca' },
+  { t:'Begin at once to live, and count each separate day as a separate life.', a:'Seneca' },
+  { t:'Luck is what happens when preparation meets opportunity.', a:'Seneca' },
+  { t:'True happiness is to enjoy the present, without anxious dependence upon the future.', a:'Seneca' },
+  { t:'We suffer more in imagination than in reality.', a:'Seneca' },
+  { t:'He suffers more than necessary, who suffers before it is necessary.', a:'Seneca' },
+  { t:'Retire into yourself as much as you can; associate with those who will make a better man of you.', a:'Seneca' },
+  { t:'Life is long if you know how to use it.', a:'Seneca' },
+  { t:'It is not the man who has too little, but the man who craves more, that is poor.', a:'Seneca' },
+  { t:'Difficulties strengthen the mind, as labor does the body.', a:'Seneca' },
+  { t:'A gem cannot be polished without friction, nor a man perfected without trials.', a:'Seneca' },
+  { t:'All things are external to us; time alone is ours.', a:'Seneca' },
+  { t:'As is a tale, so is life: not how long it is, but how good it is, is what matters.', a:'Seneca' },
+  { t:'One of the most beautiful qualities of true friendship is to understand and to be understood.', a:'Seneca' },
+  { t:'The mind that is anxious about future events is miserable.', a:'Seneca' },
+  { t:'While we delay, life speeds by.', a:'Seneca' },
+  { t:'There is nothing the wise man does reluctantly.', a:'Seneca' },
+  { t:'The part of life we really live is small.', a:'Seneca' },
+  { t:'The wish for healing has always been half of health.', a:'Seneca' },
+  { t:'He who has made a fair compact with poverty is rich.', a:'Seneca' },
+  { t:'If wisdom were offered me on condition that I keep it shut away and not divulge it, I should reject it.', a:'Seneca' },
+  { t:'We should give as we would receive: cheerfully, quickly, and without hesitation.', a:'Seneca' },
+  { t:'It is not because things are difficult that we do not dare; it is because we do not dare that things are difficult.', a:'Seneca' },
+  { t:'The bravest sight in the world is to see a great man struggling against adversity.', a:'Seneca' },
+  { t:'All cruelty springs from weakness.', a:'Seneca' },
+  { t:'Wherever there is a human being, there is an opportunity for a kindness.', a:'Seneca' },
+  { t:'No one can be happy who does not enjoy his own approbation.', a:'Seneca' },
+  { t:'The greatest remedy for anger is delay.', a:'Seneca' },
+  { t:'To be everywhere is to be nowhere.', a:'Seneca' },
+  { t:'Do not ask for what you will wish you had not got.', a:'Seneca' },
+  { t:'When a man does not know what harbor he is making for, no wind is the right wind.', a:'Seneca' },
+  { t:'Let us prepare our minds as if we had come to the very end of life.', a:'Seneca' },
+  { t:'You must linger among a limited number of master thinkers, and digest their works, if you would derive ideas which shall win firm hold in your mind.', a:'Seneca' },
+  { t:'Enjoy present pleasures in such a way as not to injure future ones.', a:'Seneca' },
+  { t:'The point is, not how long you live, but how nobly you live.', a:'Seneca' },
+  { t:'The first sign of a well-ordered mind is the ability to remain in one place and linger in one\'s own company.', a:'Seneca' },
+  { t:'It is the power of the mind to be unconquerable.', a:'Seneca' },
+  { t:'No one is born wise. Wisdom must be acquired.', a:'Seneca' },
+  { t:'Most powerful is he who has himself in his own power.', a:'Seneca' },
+  { t:'He who spares the wicked injures the good.', a:'Seneca' },
+  { t:'Philosophy promises above all things: common sense, humanity, and fellowship.', a:'Seneca' },
+  { t:'Leisure without study is death — a tomb for the living man.', a:'Seneca' },
+  { t:'The whole future lies in uncertainty: live immediately.', a:'Seneca' },
+  { t:'The greatest obstacle to living is expectancy, which hangs upon tomorrow and loses today.', a:'Seneca' },
+  { t:'Every day we die a little; every day some part of our past is taken from us.', a:'Seneca' },
+  { t:'The time that man has to live is short, and if he cannot use it to still his soul, he has lived to no purpose.', a:'Seneca' },
+  { t:'That man lives badly who does not know how to die well.', a:'Seneca' },
+  { t:'What need is there to weep over parts of life? The whole of it calls for tears — and for action.', a:'Seneca' },
+  { t:'Let fate find us prepared and active.', a:'Seneca' },
+  { t:'He is not poor who has enough.', a:'Seneca' },
+  { t:'Cherish what you have; count your blessings and you will find you have more than enough.', a:'Seneca' },
+  { t:'Time flies, and what is past is gone forever; therefore, let us use it as best we can.', a:'Seneca' },
+  { t:'The busy man is never truly alive, for he is enslaved by his own schedule.', a:'Seneca' },
+  { t:'It matters not how long you live, but how well.', a:'Seneca' },
+  { t:'What cannot be altered must be endured.', a:'Seneca' },
+  { t:'As long as you live, keep learning how to live.', a:'Seneca' },
+  { t:'He who is not satisfied with a little is satisfied with nothing.', a:'Seneca' },
+  { t:'Philosophy does not promise to procure anything outside ourselves; its whole business is with one person — the self.', a:'Seneca' },
+  { t:'It takes great wisdom to be simple.', a:'Seneca' },
+  { t:'Yield not to adversity; trust not to prosperity; keep before your eyes the full scope of Fortune\'s power.', a:'Seneca' },
+  { t:'The part of life we live is not the whole. Consider how much of it is spent in sleep, in infancy, in old age, in grief.', a:'Seneca' },
+  { t:'There is no wind favorable to him who does not know where he wants to go.', a:'Seneca' },
+  { t:'Hang on to your youthful enthusiasms; you will need them through life.', a:'Seneca' },
+  { t:'Everything, Lucilius, is opinion. Our freedom rests upon opinion.', a:'Seneca' },
+  { t:'A friend is a second self; one should care for a friend as for oneself.', a:'Seneca' },
+  { t:'Every new beginning comes from some other beginning\'s end.', a:'Seneca' },
+  { t:'For there are two things we must root out: the fear of future suffering, and the recollection of past suffering.', a:'Seneca' },
+  { t:'Receive adversity as a teacher, not as an enemy.', a:'Seneca' },
+  { t:'Nothing is so bitter that a calm mind cannot find comfort in it.', a:'Seneca' },
+  { t:'Ask yourself at every moment, is this necessary?', a:'Seneca' },
+  { t:'The happy man lacks nothing. Without virtues, the happy life cannot exist.', a:'Seneca' },
+  { t:'No act of kindness, however small, is ever wasted.', a:'Seneca' },
+  { t:'The wise man does not deprive himself of the gifts of fortune; he merely keeps them in their proper place.', a:'Seneca' },
+  { t:'Let each day be an evaluation of your own life, not someone else\'s.', a:'Seneca' },
+  { t:'Courage leads to heaven; fear leads to death.', a:'Seneca' },
+  { t:'Good things come to those who act, not to those who merely wait.', a:'Seneca' },
+  { t:'Restore a friend and you restore yourself; injure a friend and you injure yourself.', a:'Seneca' },
+  { t:'We live amid perils. We must show strength, not wish for safety.', a:'Seneca' },
+  { t:'Withdraw into yourself, as far as you can, and spend time with people who will make a better man of you.', a:'Seneca' },
+  { t:'The willing mind makes every difficulty a light matter.', a:'Seneca' },
+  { t:'If you really want to escape the things that harass you, what you need is not to be in a different place, but to be a different person.', a:'Seneca' },
+  { t:'Make each day work toward the same end; let all your efforts and words be consistent, so that the picture of your life is one of harmony.', a:'Seneca' },
+  { t:'Never force the truth into words; let it reveal itself by the way you live.', a:'Seneca' },
+  { t:'The life that is unexamined is a life squandered on the trivial.', a:'Seneca' },
+  { t:'Retire into yourself as often as you can; associate with those who are going to improve you.', a:'Seneca' },
+  { t:'I judge you unfortunate because you have never lived through misfortune. You have passed through life without an opponent.', a:'Seneca' },
+  { t:'Be harsh with yourself at times; collect and concentrate your thoughts.', a:'Seneca' },
+  { t:'It is not that I am brave enough to face death, but that I am wise enough not to fear it.', a:'Seneca' },
+  { t:'The busy have no time for tears.', a:'Seneca' },
+  { t:'There is no person so severely punished as those who subject themselves to the whip of their own remorse.', a:'Seneca' },
+  { t:'How can you wonder your travels do you no good, when you carry yourself around with you?', a:'Seneca' },
+  { t:'Not what you endure, but how you endure it — that is what matters.', a:'Seneca' },
+  { t:'No great thing is created suddenly, any more than a cluster of grapes or a fig. If you desire a fig, you must be willing to endure the season.', a:'Seneca' },
+  { t:'Toil to improve yourself, not to impress others.', a:'Seneca' },
+  { t:'Perfect felicity would be never wanting it.', a:'Seneca' },
+  { t:'The sun also shines on the wicked.', a:'Seneca' },
+  { t:'To live under constant dread of something worse is perhaps the worst thing of all.', a:'Seneca' },
+  { t:'Hold fast to this sound and wholesome rule of life: indulge the body only so far as is needful for good health.', a:'Seneca' },
+  // EPICTETUS
+  { t:'No man is free who is not master of himself.', a:'Epictetus' },
+  { t:'Make the best use of what is in your power, and take the rest as it happens.', a:'Epictetus' },
+  { t:'Men are disturbed not by things, but by the opinions about things.', a:'Epictetus' },
+  { t:'First say to yourself what you would be; and then do what you have to do.', a:'Epictetus' },
+  { t:'Wealth consists not in having great possessions, but in having few wants.', a:'Epictetus' },
+  { t:'He is a wise man who does not grieve for the things which he has not, but rejoices for those which he has.', a:'Epictetus' },
+  { t:'It is impossible for a man to learn what he thinks he already knows.', a:'Epictetus' },
+  { t:'Freedom is the only worthy goal in life. It is won by disregarding things that lie beyond our control.', a:'Epictetus' },
+  { t:'Seek not that things which happen should happen as you wish; wish the things which happen to be as they are, and you will find tranquility.', a:'Epictetus' },
+  { t:'If you want to improve, be content to be thought foolish and stupid with regard to externals.', a:'Epictetus' },
+  { t:'Difficulties are things that show a person what they are.', a:'Epictetus' },
+  { t:'We cannot choose our external circumstances, but we can always choose how we respond to them.', a:'Epictetus' },
+  { t:'Don\'t explain your philosophy. Embody it.', a:'Epictetus' },
+  { t:'Seek not the good in external things; seek it in yourself.', a:'Epictetus' },
+  { t:'Know, first, who you are; and then adorn yourself accordingly.', a:'Epictetus' },
+  { t:'Practice yourself, for heaven\'s sake, in little things, and then proceed to greater.', a:'Epictetus' },
+  { t:'Who then is invincible? The one who cannot be upset by anything outside their reasoned choice.', a:'Epictetus' },
+  { t:'Any person capable of angering you becomes your master; he can anger you only when you permit him to disturb you.', a:'Epictetus' },
+  { t:'There is only one way to happiness, and that is to cease worrying about things which are beyond the power of our will.', a:'Epictetus' },
+  { t:'Nothing great is created suddenly. Let it first blossom, then bear fruit, then ripen.', a:'Epictetus' },
+  { t:'If you wish to be a writer, write.', a:'Epictetus' },
+  { t:'We have two ears and one mouth so that we can listen twice as much as we speak.', a:'Epictetus' },
+  { t:'You are not your body and hair-style, but your capacity for choosing well. If your choices are beautiful, so too will you be.', a:'Epictetus' },
+  { t:'First learn the meaning of what you say, and then speak.', a:'Epictetus' },
+  { t:'The more we value things outside our control, the less control we have.', a:'Epictetus' },
+  { t:'We suffer not from the events in our lives but from our judgment about them.', a:'Epictetus' },
+  { t:'Of all existing things, some are in our power and some are not in our power.', a:'Epictetus' },
+  { t:'Keep your attention focused entirely on what is truly your own concern, and be clear that what belongs to others is their business and none of yours.', a:'Epictetus' },
+  { t:'Use what is in your control; accept with grace what is not.', a:'Epictetus' },
+  { t:'True instruction is this: to learn to wish that everything should come about as it does.', a:'Epictetus' },
+  { t:'The chief task in life is to identify and separate matters: which externals are not under my control, and which choices actually are.', a:'Epictetus' },
+  { t:'Be careful to leave your sons well instructed rather than rich, for the hopes of the instructed are better than the wealth of the ignorant.', a:'Epictetus' },
+  { t:'Prefer to be defeated in the truth rather than victorious in the lie.', a:'Epictetus' },
+  { t:'The essence of good and evil lies in the attitude of the will.', a:'Epictetus' },
+  { t:'This is the beginning of philosophy: a man realizes his own weakness and impotence about the things that are important.', a:'Epictetus' },
+  { t:'If you have the right opinion about yourself, you will easily endure other people\'s wrong opinion about you.', a:'Epictetus' },
+  { t:'Freedom consists not in satisfying desires, but in eliminating them.', a:'Epictetus' },
+  { t:'Do not claim more than is yours.', a:'Epictetus' },
+  { t:'In every affair consider what precedes and follows, and then undertake it.', a:'Epictetus' },
+  { t:'It is our own opinions that disturb us, not the things themselves.', a:'Epictetus' },
+  { t:'The good or ill of a man lies within his own will.', a:'Epictetus' },
+  { t:'When something is taken from you, think of it not as something lost, but as returned.', a:'Epictetus' },
+  { t:'With every difficulty, ask yourself: what faculty do I have for dealing with this?', a:'Epictetus' },
+  { t:'On every occasion ask yourself: is this of my own free will, or is it coercion?', a:'Epictetus' },
+  { t:'To the rational being, only the unnatural is unendurable; the natural can always be endured.', a:'Epictetus' },
+  { t:'The highest good is a mind that scorns the accidents of fortune and rejoices in virtue.', a:'Epictetus' },
+  { t:'If you would be free, you must not wish for anything dependent on others.', a:'Epictetus' },
+  { t:'Progress is shown not in how much you can achieve, but in how much you can endure.', a:'Epictetus' },
+  { t:'He conquers who endures.', a:'Epictetus' },
+  { t:'The goal of man is not to be rich or powerful, but to be good.', a:'Epictetus' },
+  { t:'Pursue what is right, avoid what is wrong, and be indifferent to everything else.', a:'Epictetus' },
+  { t:'You are a witness to your own behavior before all others; govern yourself accordingly.', a:'Epictetus' },
+  { t:'True education is learning to choose wisely between what is in your power and what is not.', a:'Epictetus' },
+  { t:'I laugh at those who think they can damage me. They do not know who I am, nor where my good lies.', a:'Epictetus' },
+  { t:'He who is enslaved by his opinions has enslaved himself.', a:'Epictetus' },
+  { t:'The key is to keep company only with people who uplift you, whose presence calls forth your best.', a:'Epictetus' },
+  { t:'Seek not that events should happen as you will, but let your will be that events should happen as they do.', a:'Epictetus' },
+  { t:'Ask not that events should happen as you will, but let your will be that events should happen as they do, and you will find tranquility.', a:'Epictetus' },
+  { t:'He who laughs at himself never runs out of things to laugh at.', a:'Epictetus' },
+  { t:'No man is more unhappy than he who never faces adversity, for he has not been permitted to prove himself.', a:'Epictetus' },
+  { t:'Act with caution; speak with care; never mistake opinion for fact.', a:'Epictetus' },
+  { t:'If you want to have something, act as if you already are the person who has it.', a:'Epictetus' },
+  { t:'Do not seek to have events happen as you want them to, but instead want them to happen as they do happen, and your life will go well.', a:'Epictetus' },
+  { t:'Circumstances do not make the man; they reveal him.', a:'Epictetus' },
+  { t:'It is not what happens to you, but how you react to it that matters.', a:'Epictetus' },
+  { t:'He who tires of learning tires of living.', a:'Epictetus' },
+  { t:'Show me that you are growing in equanimity, not in chasing after externals.', a:'Epictetus' },
+  { t:'We are not at the mercy of every wind that blows, if we have truly examined what matters.', a:'Epictetus' },
+  { t:'Make no claim to what is not yours; and do not weep over what never was.', a:'Epictetus' },
+  { t:'The reason why we have two ears and only one mouth is that we may listen the more and talk the less.', a:'Epictetus' },
+  { t:'Seek not for events to happen as you wish; wish for them to happen as they do, and all will be tranquil.', a:'Epictetus' },
+  { t:'Never say about anything, I have lost it; but, I have returned it.', a:'Epictetus' },
+  { t:'It is your own convictions which compel you; that is, choice compels choice.', a:'Epictetus' },
+  { t:'Seek not things that happen as you wish, but wish things to happen as they do, and you will have a tranquil flow of life.', a:'Epictetus' },
+  { t:'With every misfortune, ask: is there anything more I can learn here?', a:'Epictetus' },
+  { t:'I must die. But must I die groaning?', a:'Epictetus' },
+  { t:'Be not swept off your feet by the vividness of the impression, but say: impression, wait for me a little. Let me see what you are.', a:'Epictetus' },
+  { t:'Endure and renounce.', a:'Epictetus' },
+  // MUSONIUS RUFUS
+  { t:'It is impossible to live well without practicing virtue; all other things are neither good nor bad in themselves.', a:'Musonius Rufus' },
+  { t:'If you accomplish something good with hard work, the labor passes quickly, but the good endures.', a:'Musonius Rufus' },
+  { t:'If you do something shameful in pursuit of pleasure, the pleasure passes quickly, but the shame endures.', a:'Musonius Rufus' },
+  { t:'The philosopher\'s lecture room is a hospital; you ought not to walk out of it in pleasure, but in pain.', a:'Musonius Rufus' },
+  { t:'The man who does not practice what he preaches gains nothing from philosophy.', a:'Musonius Rufus' },
+  { t:'Not every difficult thing is worth doing, but every worthwhile thing demands difficulty.', a:'Musonius Rufus' },
+  { t:'Philosophy is the science of how to live; it must be practiced in all of life.', a:'Musonius Rufus' },
+  { t:'Reason is the best guide when the passions urge us one way and reason urges another.', a:'Musonius Rufus' },
+  { t:'We should not practice virtue merely in private, but demonstrate it in public life as well.', a:'Musonius Rufus' },
+  { t:'Choose voluntary hardship over soft comfort; hardship builds what comfort destroys.', a:'Musonius Rufus' },
+  { t:'To be truly educated, one must be educated in virtue; all else is merely training for work.', a:'Musonius Rufus' },
+  { t:'The man who is truly free is one who is free in his will, regardless of his circumstances.', a:'Musonius Rufus' },
+  { t:'The virtuous person does good not because it brings reward, but because it is right.', a:'Musonius Rufus' },
+  { t:'A person\'s true character is revealed not in good times but in adversity.', a:'Musonius Rufus' },
+  { t:'The body should be trained to endure cold, heat, hunger, thirst — everything nature throws at it.', a:'Musonius Rufus' },
+  { t:'A meal taken in harmony and with simplicity is better than a banquet eaten in anxiety.', a:'Musonius Rufus' },
+  { t:'No man is wholly ignorant; every man has some power of reason if only he would use it.', a:'Musonius Rufus' },
+  { t:'The purpose of philosophy is not to talk about virtue but to act virtuously.', a:'Musonius Rufus' },
+  { t:'Hard work is the price of excellence; there is no other currency.', a:'Musonius Rufus' },
+  { t:'To live freely, one must master the art of saying no to unnecessary pleasure.', a:'Musonius Rufus' },
+  { t:'A life spent in ease produces neither strength of body nor strength of character.', a:'Musonius Rufus' },
+  { t:'Philosophy teaches not what to think, but how to think.', a:'Musonius Rufus' },
+  { t:'Virtue is its own reward; the virtuous man needs no other.', a:'Musonius Rufus' },
+  { t:'We have an obligation to discover our duties in order to carry them out.', a:'Musonius Rufus' },
+  { t:'To train only the body while neglecting the mind is to care for the horses while ignoring the rider.', a:'Musonius Rufus' },
+  { t:'Exercise teaches the body patience; philosophy teaches the mind the same.', a:'Musonius Rufus' },
+  { t:'It is better to teach virtue than to practice it alone, for teaching multiplies virtue.', a:'Musonius Rufus' },
+  { t:'Exile from one\'s country is not a misfortune unless it is exile from one\'s principles.', a:'Musonius Rufus' },
+  { t:'The measure of a person\'s character is what they do when no one is watching.', a:'Musonius Rufus' },
+  { t:'Courage without discipline is recklessness; discipline without courage is timidity.', a:'Musonius Rufus' },
+  { t:'One who reasons well about what is good will necessarily live well.', a:'Musonius Rufus' },
+  { t:'Endure the body\'s minor hardships so that fortune\'s greater hardships will not break you.', a:'Musonius Rufus' },
+  { t:'Nature has given us all the capacity for virtue; it is our choice whether to cultivate it.', a:'Musonius Rufus' },
+  { t:'The wisest man is not he who has read the most, but he who has practiced the most.', a:'Musonius Rufus' },
+  { t:'Women and men alike are capable of virtue; to think otherwise is prejudice, not philosophy.', a:'Musonius Rufus' },
+  // ZENO OF CITIUM
+  { t:'The goal of life is to live in agreement with Nature.', a:'Zeno of Citium' },
+  { t:'Better to stumble with the toe than with the tongue.', a:'Zeno of Citium' },
+  { t:'Happiness is a good flow of life.', a:'Zeno of Citium' },
+  { t:'A man\'s character is known from his speech.', a:'Zeno of Citium' },
+  { t:'Well-being is attained little by little, and nevertheless is no little thing itself.', a:'Zeno of Citium' },
+  { t:'The most needful learning is to unlearn our errors.', a:'Zeno of Citium' },
+  { t:'The purpose of words is to advance wisdom; words that do not serve this purpose are waste.', a:'Zeno of Citium' },
+  { t:'The virtuous live according to reason; to live otherwise is to betray one\'s own nature.', a:'Zeno of Citium' },
+  { t:'To live a good life is to ask always: what is really good, and what is really bad?', a:'Zeno of Citium' },
+  { t:'From a single principle, wisdom; from a single seed, a forest.', a:'Zeno of Citium' },
+  { t:'The root of all learning is desire; without the desire to learn, nothing is acquired.', a:'Zeno of Citium' },
+  { t:'No man is bad on purpose; ignorance is the source of all wrongdoing.', a:'Zeno of Citium' },
+  { t:'The wise man does not regret the past, nor fear the future; he lives in the present.', a:'Zeno of Citium' },
+  { t:'What is virtue? A choice — made consistently and with full attention.', a:'Zeno of Citium' },
+  { t:'A life of virtue is not an act of will imposed on nature, but the fullest expression of it.', a:'Zeno of Citium' },
+  { t:'Character is what remains when everything else is taken away.', a:'Zeno of Citium' },
+  { t:'Correct your opinions; correct your life.', a:'Zeno of Citium' },
+  { t:'The man who can endure poverty has little to fear from fortune.', a:'Zeno of Citium' },
+  { t:'No loss should be more regrettable to us than losing our time, for it is irretrievable.', a:'Zeno of Citium' },
+  { t:'All the virtues are related; to practice one is to begin practicing them all.', a:'Zeno of Citium' },
+  { t:'Self-sufficiency is the greatest of all wealth.', a:'Zeno of Citium' },
+  // CLEANTHES
+  { t:'Lead me, Zeus, and lead me, Fate, wherever you have ordained for me. I follow gladly.', a:'Cleanthes' },
+  { t:'The willing are led by fate; the unwilling are dragged.', a:'Cleanthes' },
+  { t:'Where does wisdom live? In the man who has mastered himself.', a:'Cleanthes' },
+  { t:'Virtue, and virtue alone, is what makes life worth living.', a:'Cleanthes' },
+  { t:'We are all citizens of one city — the cosmos — and we must act accordingly.', a:'Cleanthes' },
+  { t:'A man\'s home is wherever his soul is at peace.', a:'Cleanthes' },
+  { t:'Reason is the thread that connects man to the divine order of the universe.', a:'Cleanthes' },
+  { t:'The purpose of life is to follow the path of virtue, wherever it leads.', a:'Cleanthes' },
+  { t:'No storm can harm the sailor who has mastered the sea within himself.', a:'Cleanthes' },
+  { t:'What destroys a man is not the blow of fate, but his response to it.', a:'Cleanthes' },
+  { t:'Every burden becomes light when you carry it with equanimity.', a:'Cleanthes' },
+  { t:'The truly educated man needs neither wealth nor power; he has something better.', a:'Cleanthes' },
+  { t:'Look not at what you have been denied; look at what you have been given.', a:'Cleanthes' },
+  { t:'He who masters himself masters the world.', a:'Cleanthes' },
+  { t:'The path of virtue is the path of reason; they are one and the same.', a:'Cleanthes' },
+  { t:'A great mind is one that wills what the universe requires of it.', a:'Cleanthes' },
+  // CHRYSIPPUS
+  { t:'The universe is governed by reason; to resist it is to resist reality.', a:'Chrysippus' },
+  { t:'We should not ask what our duties are, but whether we are performing them.', a:'Chrysippus' },
+  { t:'As a good archer does not miss his mark, so the wise man does not miss his purpose.', a:'Chrysippus' },
+  { t:'Everything is in flux; the wise man moves with the current, not against it.', a:'Chrysippus' },
+  { t:'Virtue is not a feeling; it is a habit of excellent action maintained by choice.', a:'Chrysippus' },
+  { t:'Every person contains within themselves both the obstacle and the path around it.', a:'Chrysippus' },
+  { t:'The passions are opinions; to change the passions, change the opinions.', a:'Chrysippus' },
+  { t:'Reason is the pilot of the soul; passion is only the wind. Decide who steers.', a:'Chrysippus' },
+  { t:'We should treat the universe as our city and all its inhabitants as our fellow citizens.', a:'Chrysippus' },
+  { t:'The purpose of argument is not to win, but to find the truth.', a:'Chrysippus' },
+  { t:'One who has achieved wisdom is the equal of any king.', a:'Chrysippus' },
+  { t:'The good man is rare; the good life is available to all who seek it.', a:'Chrysippus' },
+  { t:'Treat every day as a gift and every hardship as a teacher.', a:'Chrysippus' },
+  { t:'Logic is the sinew and bone of philosophy; without it, nothing stands firm.', a:'Chrysippus' },
+  { t:'The cosmos needs no justification; it simply is. Learn to say the same of your own life.', a:'Chrysippus' },
+  { t:'Virtue, once truly chosen, does not waver before circumstances.', a:'Chrysippus' },
+  // CATO THE YOUNGER
+  { t:'I had rather men should ask why my statue is not set up, than why it is.', a:'Cato the Younger' },
+  { t:'An honorable death is better than a dishonorable life.', a:'Cato the Younger' },
+  { t:'Patience is the greatest of all virtues.', a:'Cato the Younger' },
+  { t:'I prefer to be good and have no one know it, than to be known as good and not be so.', a:'Cato the Younger' },
+  { t:'A man who is happy is one who has earned the right to be so.', a:'Cato the Younger' },
+  { t:'The man who says he has never made a mistake has never tried anything worthy of his nature.', a:'Cato the Younger' },
+  { t:'Be not deceived by the seeming advantage of a longer life; what matters is a better one.', a:'Cato the Younger' },
+  { t:'We are not defeated unless we believe we are.', a:'Cato the Younger' },
+  { t:'Face adversity with the same equanimity with which you face prosperity.', a:'Cato the Younger' },
+  { t:'Justice consists not in the absence of evil, but in the presence of goodness.', a:'Cato the Younger' },
+  { t:'A man without principles is like a ship without a compass.', a:'Cato the Younger' },
+  { t:'Let your life be a credit to your principles, not merely to your circumstances.', a:'Cato the Younger' },
+  { t:'Character is what you know yourself to be; reputation is what others think of you. Choose the former.', a:'Cato the Younger' },
+  { t:'Every good act is a brick laid in the foundation of character.', a:'Cato the Younger' },
+  { t:'The best thing the living can do is prepare well for death; then all else in life becomes easier.', a:'Cato the Younger' },
+  { t:'He who surrenders his reason to circumstances has made fortune his master.', a:'Cato the Younger' },
+];
+
+// =======================================================
+// UTILITIES
+// =======================================================
+
+const pad = n => String(n).padStart(2, '0');
+
+function dayOfYear(d) {
+  const start = new Date(d.getFullYear(), 0, 0);
+  return Math.floor((d - start) / 86400000);
+}
+
+function daysInYear(y) {
+  return ((y % 4 === 0 && y % 100 !== 0) || y % 400 === 0) ? 366 : 365;
+}
+
+// Deterministic daily index — changes at midnight, same all day
+function dailyIdx(arr, salt = 0) {
+  const d = new Date();
+  const seed = d.getFullYear() * 1000 + dayOfYear(d) + salt;
+  return ((seed * 2654435761 + salt * 1000003) >>> 0) % arr.length;
+}
+
+function getZoneTime(tz, refTZ) {
+  const now    = new Date();
+  const use12  = (localStorage.getItem('dash_clock_fmt') || '24') === '12';
+  const time   = use12
+    ? now.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true })
+    : now.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+  const refDay = new Date(now.toLocaleString('en-US', { timeZone: refTZ }));
+  const tgtDay = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+  const diffD  = tgtDay.getDate() - refDay.getDate();
+  let dayLabel = '';
+  if      (diffD > 0  || diffD < -20) dayLabel = '+1';
+  else if (diffD < 0  || diffD > 20)  dayLabel = '-1';
+  return { time, dayLabel };
+}
+
+function wmoDesc(code) {
+  const m = {
+    0:'CLEAR', 1:'MAINLY CLEAR', 2:'PARTLY CLOUDY', 3:'OVERCAST',
+    45:'FOGGY', 48:'RIME FOG',
+    51:'LIGHT DRIZZLE', 53:'DRIZZLE', 55:'HEAVY DRIZZLE',
+    61:'LIGHT RAIN', 63:'RAIN', 65:'HEAVY RAIN',
+    66:'FREEZING RAIN', 67:'HEAVY FREEZING RAIN',
+    71:'LIGHT SNOW', 73:'SNOW', 75:'HEAVY SNOW', 77:'SNOW GRAINS',
+    80:'RAIN SHOWERS', 81:'SHOWERS', 82:'HEAVY SHOWERS',
+    85:'SNOW SHOWERS', 86:'HEAVY SNOW SHOWERS',
+    95:'THUNDERSTORM', 96:'THUNDERSTORM + HAIL', 99:'SEVERE STORM',
+  };
+  return m[code] ?? 'UNKNOWN CONDITIONS';
+}
+
+// =======================================================
+// CLOCK + WORLD CLOCKS  (updates every second)
+// =======================================================
+
+function updateClock() {
+  const now   = new Date();
+  const use12 = (localStorage.getItem('dash_clock_fmt') || '24') === '12';
+  let timeStr;
+  if (use12) {
+    const hh   = now.getHours() % 12 || 12;
+    const ampm = now.getHours() < 12 ? 'AM' : 'PM';
+    timeStr = `${pad(hh)}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${ampm}`;
+  } else {
+    timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  }
+  document.getElementById('main-time').textContent = timeStr;
+
+  const DAYS   = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('main-date').textContent =
+    `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()} ${now.getFullYear()}`;
+
+  const doy   = dayOfYear(now);
+  const total = daysInYear(now.getFullYear());
+  document.getElementById('main-doy').textContent = `DAY ${doy} OF ${total}`;
+
+  loadZones().forEach((z, i) => {
+    const { time, dayLabel } = getZoneTime(z.tz, 'America/Los_Angeles');
+    const tEl = document.getElementById(`tz-t-${i}`);
+    const dEl = document.getElementById(`tz-d-${i}`);
+    if (tEl) tEl.textContent = time;
+    if (dEl) dEl.textContent = dayLabel;
+  });
+}
+
+// =======================================================
+// WEATHER
+// =======================================================
+
+function fmtSunTime(isoStr) {
+  // isoStr from open-meteo is local time, e.g. "2026-03-28T06:23"
+  const [, timePart] = isoStr.split('T');
+  const [hStr, mStr] = timePart.split(':');
+  const h = parseInt(hStr, 10), m = parseInt(mStr, 10);
+  const use12 = (localStorage.getItem('dash_clock_fmt') || '24') === '12';
+  if (!use12) return `${pad(h)}:${pad(m)}`;
+  const ampm = h < 12 ? 'AM' : 'PM';
+  return `${(h % 12) || 12}:${pad(m)} ${ampm}`;
+}
+
+async function loadWeather() {
+  const locEl   = document.getElementById('wx-location');
+  const tempEl  = document.getElementById('wx-temp');
+  const condEl  = document.getElementById('wx-cond');
+  const humEl   = document.getElementById('wx-hum');
+  const windEl  = document.getElementById('wx-wind');
+  const feelsEl = document.getElementById('wx-feels');
+  const riseEl  = document.getElementById('wx-rise');
+  const setEl   = document.getElementById('wx-set');
+  const fcEl    = document.getElementById('wx-forecast');
+
+  if (!navigator.geolocation) {
+    locEl.textContent = 'GEOLOCATION NOT SUPPORTED';
+    condEl.textContent = '—';
+    return;
+  }
+
+  locEl.innerHTML = '&gt;&gt; LOCATING...';
+
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+
+    // Reverse geocode
+    try {
+      const gr   = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+      const gd   = await gr.json();
+      const city = gd.address?.city || gd.address?.town || gd.address?.village || gd.address?.county || '';
+      const st   = gd.address?.state ? ', ' + gd.address.state : '';
+      locEl.textContent = `>> ${(city + st).toUpperCase()}  [${lat.toFixed(2)}, ${lon.toFixed(2)}]`;
+    } catch {
+      locEl.textContent = `>> [${lat.toFixed(2)}, ${lon.toFixed(2)}]`;
+    }
+
+    // Weather + forecast
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast`
+        + `?latitude=${lat}&longitude=${lon}`
+        + `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relative_humidity_2m`
+        + `&daily=sunrise,sunset,weathercode,temperature_2m_max,temperature_2m_min`
+        + `&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=auto&forecast_days=4`;
+      const wr = await fetch(url);
+      const wd = await wr.json();
+      const c  = wd.current;
+      const d  = wd.daily;
+
+      // Current conditions
+      tempEl.textContent  = `${Math.round(c.temperature_2m)}°F`;
+      condEl.textContent  = wmoDesc(c.weathercode);
+      humEl.textContent   = `${c.relative_humidity_2m}%`;
+      windEl.textContent  = `${Math.round(c.windspeed_10m)} MPH`;
+      feelsEl.textContent = `${Math.round(c.apparent_temperature)}°F`;
+
+      // Sunrise / sunset
+      riseEl.textContent = fmtSunTime(d.sunrise[0]);
+      setEl.textContent  = fmtSunTime(d.sunset[0]);
+
+      // 3-day forecast (indices 1–3)
+      const DNAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+      let fcHtml = '';
+      for (let i = 1; i <= 3; i++) {
+        // d.time[i] is like "2026-03-29" — parse without timezone shift
+        const [yr, mo, dy] = d.time[i].split('-').map(Number);
+        const dayName = DNAMES[new Date(yr, mo - 1, dy).getDay()];
+        const hi = Math.round(d.temperature_2m_max[i]);
+        const lo = Math.round(d.temperature_2m_min[i]);
+        const cond = wmoDesc(d.weathercode[i]).split(' ').slice(0,2).join(' ');
+        fcHtml += `<div class="wx-fc-row">
+          <span class="wx-fc-name">${dayName}</span>
+          <span class="wx-fc-cond">${cond}</span>
+          <span class="wx-fc-temps">${hi}° <span class="wx-fc-lo">/ ${lo}°</span></span>
+        </div>`;
+      }
+      fcEl.innerHTML = fcHtml;
+      fcEl.style.display = 'flex';
+    } catch {
+      tempEl.textContent = '—';
+      condEl.textContent = 'WEATHER FETCH FAILED';
+    }
+  }, () => {
+    locEl.textContent  = 'LOCATION ACCESS DENIED';
+    condEl.textContent = 'ENABLE LOCATION FOR WEATHER';
+  });
+}
+
+// =======================================================
+// WORD OF THE DAY
+// =======================================================
+
+function getYearShuffledWord() {
+  const now  = new Date();
+  const year = now.getFullYear();
+  const doy  = dayOfYear(now);
+  const idx  = Array.from({length: WORDS.length}, (_, i) => i);
+  let seed   = (year * 1234567891) >>> 0;
+  const rng  = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed; };
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = rng() % (i + 1);
+    [idx[i], idx[j]] = [idx[j], idx[i]];
+  }
+  return WORDS[idx[(doy - 1) % idx.length]];
+}
+
+function renderWord() {
+  const w    = getYearShuffledWord();
+  document.getElementById('word-zh').textContent     = w.zh;
+  document.getElementById('word-pinyin').textContent = w.py;
+  document.getElementById('word-def').textContent    = w.def;
+  const exEl   = document.getElementById('word-example');
+  const exEnEl = document.getElementById('word-example-en');
+  if (w.ex) {
+    exEl.textContent     = w.ex;
+    exEnEl.textContent   = w.exEn || '';
+    exEl.style.display   = '';
+    exEnEl.style.display = '';
+  } else {
+    exEl.style.display   = 'none';
+    exEnEl.style.display = 'none';
+  }
+}
+
+// =======================================================
+// STOIC QUOTE
+// =======================================================
+
+function getYearShuffledQuote() {
+  const now  = new Date();
+  const year = now.getFullYear();
+  const doy  = dayOfYear(now); // 1-indexed
+  // Build index array, shuffle with year as seed (different order each year)
+  const idx = Array.from({length: QUOTES.length}, (_, i) => i);
+  let seed  = (year * 2654435761) >>> 0;
+  const rng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed; };
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = rng() % (i + 1);
+    [idx[i], idx[j]] = [idx[j], idx[i]];
+  }
+  return QUOTES[idx[(doy - 1) % idx.length]];
+}
+
+function renderQuote() {
+  const q = getYearShuffledQuote();
+  document.getElementById('quote-text').textContent   = `"${q.t}"`;
+  document.getElementById('quote-author').textContent = `— ${q.a}`;
+}
+
+// =======================================================
+// NOTES
+// =======================================================
+
+const NOTES_KEY    = 'dashboard_notes_v1';
+const KEEP_MS      = 21 * 24 * 60 * 60 * 1000; // 21 days
+
+function loadNotes() {
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveNotes(arr) {
+  localStorage.setItem(NOTES_KEY, JSON.stringify(arr));
+}
+
+function mdToHtml(raw) {
+  // Escape HTML first, then apply markdown
+  let s = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Process line by line for block elements
+  const lines = s.split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Headers
+    if (/^### /.test(line))      { out.push(`<h3>${applyInline(line.slice(4))}</h3>`); i++; continue; }
+    if (/^## /.test(line))       { out.push(`<h2>${applyInline(line.slice(3))}</h2>`); i++; continue; }
+    if (/^# /.test(line))        { out.push(`<h1>${applyInline(line.slice(2))}</h1>`); i++; continue; }
+    // Blockquote
+    if (/^&gt; /.test(line))     { out.push(`<blockquote>${applyInline(line.slice(5))}</blockquote>`); i++; continue; }
+    // Unordered list
+    if (/^[-*] /.test(line))     { out.push(`<ul><li>${applyInline(line.slice(2))}</li></ul>`); i++; continue; }
+    // Ordered list
+    if (/^\d+\. /.test(line))    { out.push(`<ol><li>${applyInline(line.replace(/^\d+\. /,''))}</li></ol>`); i++; continue; }
+    // Blank line = paragraph break
+    if (line.trim() === '')      { out.push('<br>'); i++; continue; }
+    // Normal line
+    out.push(`<p>${applyInline(line)}</p>`);
+    i++;
+  }
+  // Merge consecutive ul/ol
+  return out.join('')
+    .replace(/<\/ul><ul>/g, '')
+    .replace(/<\/ol><ol>/g, '');
+}
+
+function applyInline(s) {
+  return s
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>');
+}
+
+function renderNotes() {
+  const notes = loadNotes();
+  const log   = document.getElementById('notes-log');
+  if (!notes.length) {
+    log.innerHTML = '<div class="notes-empty">// no entries yet</div>';
+    return;
+  }
+  log.innerHTML = [...notes].reverse().map(n => {
+    const d  = new Date(n.ts);
+    const ts = d.toLocaleString('en-US', {
+      month:'short', day:'2-digit', year:'numeric',
+      hour:'2-digit', minute:'2-digit', hour12:false,
+    }).toUpperCase();
+    const safeTs = n.ts.replace(/'/g, "\\'");
+    return `<div class="note-entry">
+      <div class="note-ts">
+        <span>${ts}</span>
+        <button class="note-del" onclick="deleteNote('${safeTs}')" title="delete">×</button>
+      </div>
+      <div class="note-body">${mdToHtml(n.text)}</div>
+    </div>`;
+  }).join('');
+}
+
+function deleteNote(ts) {
+  saveNotes(loadNotes().filter(n => n.ts !== ts));
+  renderNotes();
+}
+
+function logNote() {
+  const inp  = document.getElementById('note-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  const cutoff = Date.now() - KEEP_MS;
+  const notes  = loadNotes().filter(n => new Date(n.ts).getTime() > cutoff);
+  notes.push({ ts: new Date().toISOString(), text });
+  saveNotes(notes);
+  inp.value = '';
+  renderNotes();
+  document.getElementById('notes-log').scrollTop = 0;
+}
+
+function exportNotes(fmt) {
+  const notes = loadNotes();
+  if (!notes.length) { alert('No notes to export.'); return; }
+  const sorted = [...notes].sort((a,b) => new Date(a.ts)-new Date(b.ts));
+  let out = '';
+  if (fmt === 'md') {
+    out = `# Notes Export\n_${new Date().toLocaleString()}_\n\n`;
+    sorted.forEach(n => {
+      const d = new Date(n.ts);
+      out += `## ${d.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}\n\n${n.text}\n\n---\n\n`;
+    });
+  } else {
+    out = `NOTES EXPORT — ${new Date().toLocaleString()}\n${'='.repeat(48)}\n\n`;
+    sorted.forEach(n => {
+      out += `[${new Date(n.ts).toLocaleString()}]\n${n.text}\n\n`;
+    });
+  }
+  const a    = Object.assign(document.createElement('a'), {
+    href:     URL.createObjectURL(new Blob([out],{type:'text/plain'})),
+    download: `notes-${new Date().toISOString().slice(0,10)}.${fmt}`,
+  });
+  a.click();
+}
+
+// Ctrl/Cmd+Enter to log
+document.getElementById('note-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); logNote(); }
+});
+
+// =======================================================
+// THEME
+// =======================================================
+
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('dash_theme', t);
+  document.querySelectorAll('.tbtn').forEach(b =>
+    b.classList.toggle('active', b.dataset.theme === t)
+  );
+}
+
+// =======================================================
+// GREETING
+// =======================================================
+
+function renderGreeting() {
+  const name = (localStorage.getItem('dash_name') || '').trim();
+  const h    = new Date().getHours();
+  const word = h >= 5 && h < 12  ? 'GOOD MORNING'
+             : h >= 12 && h < 17 ? 'GOOD AFTERNOON'
+             : h >= 17 && h < 21 ? 'GOOD EVENING'
+             :                     'GOOD NIGHT';
+  const suffix = name ? `, ${name.toUpperCase()}` : '';
+  document.getElementById('greeting').textContent = `// ${word}${suffix}`;
+}
+
+// =======================================================
+// SETTINGS
+// =======================================================
+
+function toggleSettings(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('settings-panel');
+  const btn   = document.getElementById('cfg-btn');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('active', open);
+  if (open) {
+    document.getElementById('cfg-name').value = localStorage.getItem('dash_name') || '';
+    syncClockFmtBtns();
+  }
+}
+
+function saveCfgName() {
+  const val = document.getElementById('cfg-name').value.trim();
+  if (!val) return;
+  localStorage.setItem('dash_name', val);
+  renderGreeting();
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('cfg-btn').classList.remove('active');
+}
+
+function setClockFmt(fmt) {
+  localStorage.setItem('dash_clock_fmt', fmt);
+  syncClockFmtBtns();
+  updateClock();
+}
+
+function syncClockFmtBtns() {
+  const fmt = localStorage.getItem('dash_clock_fmt') || '24';
+  document.getElementById('fmt-12').classList.toggle('active', fmt === '12');
+  document.getElementById('fmt-24').classList.toggle('active', fmt === '24');
+}
+
+// Close settings when clicking outside
+document.addEventListener('click', e => {
+  const panel = document.getElementById('settings-panel');
+  if (panel.classList.contains('open') && !panel.closest('.settings-wrap').contains(e.target)) {
+    panel.classList.remove('open');
+    document.getElementById('cfg-btn').classList.remove('active');
+  }
+});
+
+// =======================================================
+// NAME PROMPT
+// =======================================================
+
+function initNamePrompt() {
+  const overlay  = document.getElementById('name-overlay');
+  const input    = document.getElementById('name-entry');
+
+  if (localStorage.getItem('dash_name')) {
+    overlay.style.display = 'none';
+    return;
+  }
+
+  overlay.style.display = 'flex';
+  setTimeout(() => input.focus(), 80);
+
+  function submit() {
+    const val = input.value.trim();
+    if (!val) return;
+    localStorage.setItem('dash_name', val);
+    overlay.style.display = 'none';
+    renderGreeting();
+  }
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+}
+
+// =======================================================
+// WORLD CLOCK — ZONE MANAGEMENT
+// =======================================================
+
+const DEFAULT_ZONES = [
+  { label: 'LOS_ANGELES', tz: 'America/Los_Angeles' },
+  { label: 'TAIPEI',      tz: 'Asia/Taipei'         },
+  { label: 'TOKYO',       tz: 'Asia/Tokyo'          },
+];
+const ZONES_KEY = 'dash_zones';
+
+function loadZones() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(ZONES_KEY));
+    return (Array.isArray(stored) && stored.length) ? stored : DEFAULT_ZONES;
+  } catch { return DEFAULT_ZONES; }
+}
+
+function saveZones(arr) {
+  localStorage.setItem(ZONES_KEY, JSON.stringify(arr));
+}
+
+function renderZones() {
+  const zones = loadZones();
+  document.getElementById('tz-list').innerHTML = zones.map((z, i) => `
+    <div class="tz-row">
+      <span class="tz-label">${z.label.toUpperCase()}</span>
+      <div class="tz-right">
+        <span class="tz-time" id="tz-t-${i}">—</span>
+        <span class="tz-day"  id="tz-d-${i}"></span>
+        <button class="tz-del" onclick="removeZone(${i})" title="remove">×</button>
+      </div>
+    </div>`).join('');
+  // Hide + button at max
+  document.getElementById('tz-add-btn').style.visibility = zones.length >= 5 ? 'hidden' : 'visible';
+}
+
+function removeZone(i) {
+  const zones = loadZones();
+  if (zones.length <= 1) return; // always keep at least one
+  zones.splice(i, 1);
+  saveZones(zones);
+  renderZones();
+}
+
+function toggleAddZone() {
+  const form = document.getElementById('tz-add-form');
+  const open = form.classList.toggle('open');
+  if (open) {
+    document.getElementById('tz-new-label').value = '';
+    document.getElementById('tz-new-tz').value = '';
+    setTimeout(() => document.getElementById('tz-new-label').focus(), 50);
+  }
+}
+
+function submitAddZone() {
+  const label = document.getElementById('tz-new-label').value.trim();
+  const tz    = document.getElementById('tz-new-tz').value.trim();
+  if (!label || !tz) return;
+  const zones = loadZones();
+  if (zones.length >= 5) return;
+  zones.push({ label, tz });
+  saveZones(zones);
+  renderZones();
+  toggleAddZone();
+}
+
+// Also allow Enter in the tz field to submit
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('tz-new-tz')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAddZone();
+  });
+});
+
+// =======================================================
+// CALENDAR
+// =======================================================
+
+const CAL_MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+                    'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+let calState = null; // { year, month } — null means "use today"
+
+function renderCalendar() {
+  const now      = new Date();
+  const todayY   = now.getFullYear();
+  const todayM   = now.getMonth();
+  const todayD   = now.getDate();
+  const year     = calState ? calState.year  : todayY;
+  const month    = calState ? calState.month : todayM;
+  const isCurrent = (year === todayY && month === todayM);
+  const firstDay  = new Date(year, month, 1).getDay();
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  // Title: dim if browsing away from current month
+  const titleEl = document.getElementById('cal-title');
+  titleEl.textContent = `${CAL_MONTHS[month]} ${year}`;
+  titleEl.className = `cal-month ${isCurrent ? 'is-current' : 'is-other'}`;
+
+  let grid = '<div class="cal-grid">';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d => {
+    grid += `<span class="cal-dh">${d}</span>`;
+  });
+  for (let i = 0; i < firstDay; i++) grid += `<span class="cal-d"></span>`;
+  for (let d = 1; d <= totalDays; d++) {
+    const isToday = isCurrent && d === todayD;
+    grid += `<span class="${isToday ? 'cal-d cal-today' : 'cal-d'}">${d}</span>`;
+  }
+  grid += '</div>';
+  document.getElementById('cal-widget').innerHTML = grid;
+}
+
+function calStep(dir) {
+  const now   = new Date();
+  let year  = calState ? calState.year  : now.getFullYear();
+  let month = calState ? calState.month : now.getMonth();
+  month += dir;
+  if (month > 11) { month = 0;  year++; }
+  if (month < 0)  { month = 11; year--; }
+  calState = { year, month };
+  renderCalendar();
+}
+
+function calReset() {
+  calState = null;
+  renderCalendar();
+}
+
+// =======================================================
+// INIT
+// =======================================================
+
+(function init() {
+  setTheme(localStorage.getItem('dash_theme') || 'green');
+  syncClockFmtBtns();
+  initNamePrompt();
+  renderGreeting();
+  renderZones();
+  updateClock();
+  setInterval(updateClock, 1000);
+  // Re-render greeting every minute in case the time-of-day label changes
+  setInterval(renderGreeting, 60000);
+  loadWeather();
+  renderWord();
+  renderQuote();
+  renderNotes();
+  renderCalendar();
+})();
+</script>
+</body>
+</html>
