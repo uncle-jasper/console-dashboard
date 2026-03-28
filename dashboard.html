@@ -191,7 +191,7 @@
       letter-spacing: 0.2em;
       color: var(--fg-dim);
     }
-    .tz-right { display: flex; align-items: baseline; gap: 6px; }
+    .tz-right { display: flex; align-items: center; gap: 6px; }
     .tz-time { font-size: 20px; color: var(--fg); }
     .tz-day {
       font-size: 9px;
@@ -213,6 +213,29 @@
     }
     .tz-row:hover .tz-del { opacity: 0.5; }
     .tz-del:hover { opacity: 1 !important; color: var(--fg); }
+    .tz-move-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .tz-row:hover .tz-move-col { opacity: 0.4; }
+    .tz-move-col:hover { opacity: 1 !important; }
+    .tz-move {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-family: inherit;
+      font-size: 8px;
+      line-height: 1.2;
+      padding: 0;
+      cursor: pointer;
+      transition: color 0.1s;
+      display: block;
+    }
+    .tz-move:hover { color: var(--fg); }
+    .tz-move:disabled { opacity: 0.15; cursor: default; }
     .tz-add-form {
       display: none;
       flex-direction: column;
@@ -311,16 +334,256 @@
     }
 
     /* ===================================================
+       TIMER
+    =================================================== */
+    #timer-panel {
+      display: flex;
+      flex-direction: column;
+    }
+    .timer-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 2px 0 4px;
+    }
+    .timer-mode-row {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .tmbtn {
+      background: none;
+      border: 1px solid var(--fg-muted);
+      color: var(--fg-dim);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 9px;
+      cursor: pointer;
+      letter-spacing: 0.12em;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .tmbtn.active, .tmbtn:hover { border-color: var(--fg); color: var(--fg); }
+    .timer-sound-btn {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: var(--fg-muted);
+      cursor: pointer;
+      padding: 0 4px;
+      transition: color 0.1s, opacity 0.1s;
+    }
+    .timer-sound-btn:hover { color: var(--fg); }
+    .timer-sound-btn.muted { opacity: 0.35; }
+    .timer-display {
+      font-size: 48px;
+      letter-spacing: 0.06em;
+      color: var(--fg-dim);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.25s;
+    }
+    .timer-display.running { color: var(--accent); }
+    .timer-display.done    { color: var(--fg); }
+    .timer-phase-row {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--fg-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 13px;
+    }
+    .timer-dots { letter-spacing: 0.25em; font-size: 8px; }
+    .timer-custom-inputs {
+      display: none;
+      align-items: center;
+      gap: 4px;
+    }
+    .timer-custom-inputs input {
+      width: 38px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 20px;
+      text-align: center;
+      padding: 3px 4px;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+    .timer-custom-inputs input::-webkit-outer-spin-button,
+    .timer-custom-inputs input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .timer-custom-inputs input:focus { border-color: var(--fg-dim); }
+    .timer-custom-sep { font-size: 20px; color: var(--fg-dim); }
+    .timer-controls { display: flex; gap: 5px; margin-top: 2px; }
+
+    /* ===================================================
+       TODO
+    =================================================== */
+    .todo-input-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 7px;
+    }
+    #todo-input {
+      flex: 1;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 5px 8px;
+      outline: none;
+    }
+    #todo-input:focus { border-color: var(--fg-dim); }
+    #todo-input::placeholder { color: var(--fg-muted); font-style: italic; }
+    .todo-list { max-height: 180px; overflow-y: auto; }
+    .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--fg-muted);
+      font-size: 12px;
+    }
+    .todo-item:last-child { border-bottom: none; }
+    .todo-cb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      border: 1px solid var(--fg-dim);
+      background: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      position: relative;
+      margin-top: 2px;
+      transition: border-color 0.15s;
+    }
+    .todo-cb:checked { border-color: var(--fg-muted); }
+    .todo-cb:checked::after {
+      content: '×';
+      position: absolute;
+      top: -4px;
+      left: 0px;
+      font-size: 12px;
+      color: var(--fg-muted);
+      line-height: 1;
+    }
+    .todo-text { flex: 1; transition: color 0.2s; line-height: 1.4; }
+    .todo-item.done .todo-text {
+      color: var(--fg-muted);
+      text-decoration: line-through;
+      text-decoration-color: var(--fg-muted);
+    }
+    .todo-del {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 0 2px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .todo-item:hover .todo-del { opacity: 0.5; }
+    .todo-del:hover { opacity: 1 !important; color: var(--fg); }
+    .todo-move-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      opacity: 0;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .todo-item:hover .todo-move-col { opacity: 0.4; }
+    .todo-move-col:hover { opacity: 1 !important; }
+    .todo-move {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-family: inherit;
+      font-size: 8px;
+      line-height: 1.2;
+      padding: 0;
+      cursor: pointer;
+      display: block;
+      transition: color 0.1s;
+    }
+    .todo-move:hover { color: var(--fg); }
+    .todo-move:disabled { opacity: 0.15; cursor: default; }
+    .todo-empty { color: var(--fg-muted); font-size: 11px; font-style: italic; }
+    .todo-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 7px;
+    }
+
+    /* ===================================================
        NOTES
     =================================================== */
-    .notes-log {
-      max-height: 120px;
+    /* Notes split pane */
+    .notes-split {
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+    }
+    .notes-compose {
+      flex: 0 0 38%;
+      padding-right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .notes-mode-label {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--fg-muted);
+    }
+    .notes-mode-label.editing { color: var(--accent); }
+    #note-input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 10px;
+      resize: vertical;
+      min-height: 72px;
+      width: 100%;
+      outline: none;
+      line-height: 1.5;
+      box-sizing: border-box;
+      transition: border-color 0.15s;
+    }
+    #note-input:focus { border-color: var(--fg-dim); }
+    #note-input.edit-mode { border-color: var(--accent); }
+    #note-input::placeholder { color: var(--fg-muted); font-style: italic; }
+    .notes-compose-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+    .notes-hint {
+      font-size: 9px;
+      color: var(--fg-muted);
+      letter-spacing: 0.1em;
+    }
+    .notes-view {
+      flex: 1;
+      border-left: 1px solid var(--fg-muted);
+      padding-left: 14px;
       overflow-y: auto;
-      margin-bottom: 8px;
+      max-height: 220px;
       font-size: 12px;
     }
     .note-entry {
-      padding: 3px 0;
+      padding: 4px 0;
       border-bottom: 1px solid var(--fg-muted);
     }
     .note-entry:last-child { border-bottom: none; }
@@ -329,7 +592,11 @@
       letter-spacing: 0.15em;
       color: var(--fg-muted);
       margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
+    .note-actions { display: flex; gap: 2px; align-items: center; }
     .note-body {
       color: var(--fg);
       word-break: break-word;
@@ -364,28 +631,6 @@
     .note-body li { margin: 1px 0; }
     .note-body p { margin: 3px 0; }
     .notes-empty { color: var(--fg-muted); font-size: 11px; font-style: italic; }
-    .notes-input-area { display: flex; gap: 8px; align-items: flex-end; }
-    #note-input {
-      flex: 1;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      color: var(--fg);
-      font-family: inherit;
-      font-size: 12px;
-      padding: 8px 10px;
-      resize: vertical;
-      min-height: 58px;
-      outline: none;
-      line-height: 1.5;
-    }
-    #note-input:focus { border-color: var(--fg); }
-    #note-input::placeholder { color: var(--fg-muted); font-style: italic; }
-    .notes-btns {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      flex-shrink: 0;
-    }
     .btn {
       background: none;
       border: 1px solid var(--border);
@@ -400,26 +645,21 @@
     }
     .btn:hover { border-color: var(--fg); color: var(--fg); }
     .btn-primary { border-color: var(--fg); color: var(--fg); }
-    .notes-hint {
-      font-size: 9px;
-      color: var(--fg-muted);
-      letter-spacing: 0.1em;
-      margin-top: 6px;
-    }
-    .note-ts { display: flex; align-items: center; justify-content: space-between; }
-    .note-del {
+    .note-del, .note-edit {
       background: none;
       border: none;
       color: var(--fg-muted);
       font-family: inherit;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1;
-      padding: 0;
+      padding: 0 2px;
       cursor: pointer;
-      opacity: 0.5;
-      transition: opacity 0.1s, color 0.1s;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s;
     }
-    .note-del:hover { opacity: 1; color: var(--fg); }
+    .note-entry:hover .note-del,
+    .note-entry:hover .note-edit { opacity: 0.5; }
+    .note-del:hover, .note-edit:hover { opacity: 1 !important; color: var(--fg); }
 
     /* ===================================================
        CALENDAR
@@ -586,6 +826,43 @@
     .wx-fc-lo { color: var(--fg-muted); }
 
     /* ===================================================
+       LAYOUT CONTROLS (row reorder + panel swap)
+    =================================================== */
+    .row-wrap {
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 8px;
+    }
+    .row-wrap .row { flex: 1; margin-bottom: 0; }
+    .row-ctrl {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      width: 14px;
+      margin-left: 4px;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .row-wrap:hover .row-ctrl { opacity: 0.25; }
+    .row-ctrl:hover { opacity: 1 !important; }
+    .rc-btn {
+      background: none;
+      border: none;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 9px;
+      cursor: pointer;
+      padding: 1px 0;
+      line-height: 1;
+      text-align: center;
+      transition: color 0.1s;
+    }
+    .rc-btn:hover { color: var(--accent); }
+    .rc-btn:disabled { opacity: 0.12; cursor: default; }
+
+    /* ===================================================
        SCROLLBAR
     =================================================== */
     ::-webkit-scrollbar { width: 3px; }
@@ -633,13 +910,25 @@
             <button class="tbtn" id="fmt-12" onclick="setClockFmt('12')">12H</button>
             <button class="tbtn" id="fmt-24" onclick="setClockFmt('24')">24H</button>
           </div>
+          <div class="sp-row">
+            <span class="sp-label">WEATHER</span>
+            <button class="tbtn" id="unit-f" onclick="setWxUnit('F')">°F</button>
+            <button class="tbtn" id="unit-c" onclick="setWxUnit('C')">°C</button>
+          </div>
+          <div class="sp-row">
+            <span class="sp-label">QUOTES</span>
+            <button class="tbtn" id="qmode-stoic" onclick="setQuoteMode('stoic')">STOIC</button>
+            <button class="tbtn" id="qmode-dude"  onclick="setQuoteMode('dude')">DUDE</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
+  <div id="dashboard-rows">
+
   <!-- ROW 1: CLOCK + WORLD CLOCKS + CALENDAR -->
-  <div class="row row-3">
+  <div class="row row-3" id="row-clocks">
     <div class="panel">
       <div class="panel-hdr">SYS.TIME</div>
       <div id="main-time">00:00:00</div>
@@ -706,7 +995,7 @@
 
 
   <!-- ROW 2: WEATHER -->
-  <div class="row">
+  <div class="row" id="row-weather">
     <div class="panel">
       <div class="panel-hdr">WEATHER</div>
       <div class="wx-body">
@@ -730,7 +1019,7 @@
   </div>
 
   <!-- ROW 3: WORD OF DAY + STOIC QUOTE -->
-  <div class="row row-2">
+  <div class="row row-2" id="row-wordquote">
     <div class="panel">
       <div class="panel-hdr">WORD.OF.DAY — TOCFL LV.4-5</div>
       <div class="word-top">
@@ -744,30 +1033,85 @@
       <div id="word-example-en">—</div>
     </div>
     <div class="panel">
-      <div class="panel-hdr">STOIC.QUOTE</div>
+      <div class="panel-hdr" id="quote-hdr">STOIC.QUOTE</div>
       <div id="quote-text">—</div>
       <div id="quote-author">—</div>
     </div>
   </div>
 
   <!-- ROW 4: NOTES -->
-  <div class="row">
+  <div class="row" id="row-notes">
     <div class="panel">
-      <div class="panel-hdr">NOTES.LOG</div>
-      <div class="notes-log" id="notes-log">
-        <div class="notes-empty">// no entries yet</div>
-      </div>
-      <div class="notes-input-area">
-        <textarea id="note-input" placeholder="// enter note... (Ctrl+Enter to log)"></textarea>
-        <div class="notes-btns">
-          <button class="btn btn-primary" onclick="logNote()">LOG</button>
-          <button class="btn" onclick="exportNotes('md')">EXP.MD</button>
-          <button class="btn" onclick="exportNotes('txt')">EXP.TXT</button>
+      <div class="panel-hdr">NOTES</div>
+      <div class="notes-split">
+        <div class="notes-compose">
+          <div class="notes-mode-label" id="notes-mode-label">NEW.NOTE</div>
+          <textarea id="note-input" placeholder="// enter note... (Ctrl+Enter to log)"></textarea>
+          <div class="notes-compose-btns">
+            <button class="btn btn-primary" id="note-submit-btn" onclick="logNote()">LOG</button>
+            <button class="btn" id="note-cancel-btn" onclick="cancelEdit()" style="display:none">CANCEL</button>
+            <button class="btn" onclick="exportNotes('md')">EXP.MD</button>
+            <button class="btn" onclick="exportNotes('txt')">EXP.TXT</button>
+          </div>
+          <div class="notes-hint">CTRL+ENTER TO LOG &nbsp;|&nbsp; 21 DAY RETENTION</div>
+        </div>
+        <div class="notes-view" id="notes-log">
+          <div class="notes-empty">// no entries yet</div>
         </div>
       </div>
-      <div class="notes-hint">ENTRIES KEPT FOR 21 DAYS &nbsp;|&nbsp; CTRL+ENTER TO LOG</div>
     </div>
   </div>
+
+  <!-- ROW 5: TIMER + TODO -->
+  <div class="row row-2" id="row-timertodo">
+
+    <!-- TIMER -->
+    <div class="panel" id="timer-panel">
+      <div class="panel-hdr">TIMER</div>
+      <div class="timer-wrap">
+        <div class="timer-mode-row">
+          <button class="tmbtn active" id="tm-pomo"   onclick="setTimerMode('pomo')">POMO</button>
+          <button class="tmbtn"        id="tm-custom" onclick="setTimerMode('custom')">CUSTOM</button>
+          <button class="timer-sound-btn" id="timer-sound-btn" onclick="toggleTimerSound()">♪ ON</button>
+        </div>
+        <div class="timer-display" id="timer-display">25:00</div>
+        <div class="timer-phase-row" id="timer-phase-row">
+          <span id="timer-phase-label">WORK</span>
+          <span class="timer-dots" id="timer-dots">○ ○ ○ ○</span>
+        </div>
+        <div class="timer-custom-inputs" id="timer-custom-inputs">
+          <input type="number" id="timer-min" value="25" min="0" max="99"
+                 oninput="onCustomInput()">
+          <span class="timer-custom-sep">:</span>
+          <input type="number" id="timer-sec" value="00" min="0" max="59"
+                 oninput="onCustomInput()">
+        </div>
+        <div class="timer-controls">
+          <button class="btn btn-primary" id="timer-start-btn" onclick="timerToggle()">START</button>
+          <button class="btn" onclick="timerReset()">RESET</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TO-DO -->
+    <div class="panel">
+      <div class="panel-hdr" style="display:flex;justify-content:space-between;align-items:center">
+        TO-DO
+        <button class="btn" onclick="clearAllTodos()"
+                style="font-size:9px;padding:2px 8px;letter-spacing:0.1em">CLEAR ALL</button>
+      </div>
+      <div class="todo-input-row">
+        <input type="text" id="todo-input" placeholder="// add task...">
+        <button class="btn btn-primary" onclick="addTodo()">ADD</button>
+      </div>
+      <div class="todo-list" id="todo-list">
+        <div class="todo-empty">// no tasks yet</div>
+      </div>
+    </div>
+
+  </div><!-- /row 5 -->
+
+  </div><!-- /dashboard-rows -->
 
 </div><!-- /dashboard -->
 
@@ -1730,6 +2074,22 @@ function fmtSunTime(isoStr) {
   return `${(h % 12) || 12}:${pad(m)} ${ampm}`;
 }
 
+let wxUnit = localStorage.getItem('dash_wx_unit') || 'F';
+
+function setWxUnit(u) {
+  wxUnit = u;
+  localStorage.setItem('dash_wx_unit', u);
+  syncWxUnitBtns();
+  loadWeather();
+}
+
+function syncWxUnitBtns() {
+  const f = document.getElementById('unit-f');
+  const c = document.getElementById('unit-c');
+  if (f) f.classList.toggle('active', wxUnit === 'F');
+  if (c) c.classList.toggle('active', wxUnit === 'C');
+}
+
 async function loadWeather() {
   const locEl   = document.getElementById('wx-location');
   const tempEl  = document.getElementById('wx-temp');
@@ -1769,18 +2129,20 @@ async function loadWeather() {
         + `?latitude=${lat}&longitude=${lon}`
         + `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relative_humidity_2m`
         + `&daily=sunrise,sunset,weathercode,temperature_2m_max,temperature_2m_min`
-        + `&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=auto&forecast_days=4`;
+        + `&temperature_unit=${wxUnit === 'C' ? 'celsius' : 'fahrenheit'}&windspeed_unit=${wxUnit === 'C' ? 'kmh' : 'mph'}&timezone=auto&forecast_days=4`;
       const wr = await fetch(url);
       const wd = await wr.json();
       const c  = wd.current;
       const d  = wd.daily;
 
       // Current conditions
-      tempEl.textContent  = `${Math.round(c.temperature_2m)}°F`;
+      const uLabel = wxUnit === 'C' ? '°C' : '°F';
+      const wLabel = wxUnit === 'C' ? 'KM/H' : 'MPH';
+      tempEl.textContent  = `${Math.round(c.temperature_2m)}${uLabel}`;
       condEl.textContent  = wmoDesc(c.weathercode);
       humEl.textContent   = `${c.relative_humidity_2m}%`;
-      windEl.textContent  = `${Math.round(c.windspeed_10m)} MPH`;
-      feelsEl.textContent = `${Math.round(c.apparent_temperature)}°F`;
+      windEl.textContent  = `${Math.round(c.windspeed_10m)} ${wLabel}`;
+      feelsEl.textContent = `${Math.round(c.apparent_temperature)}${uLabel}`;
 
       // Sunrise / sunset
       riseEl.textContent = fmtSunTime(d.sunrise[0]);
@@ -1869,8 +2231,97 @@ function getYearShuffledQuote() {
   return QUOTES[idx[(doy - 1) % idx.length]];
 }
 
+// =======================================================
+// THE BIG LEBOWSKI QUOTES
+// =======================================================
+const LEBOWSKI_QUOTES = [
+  // The Dude
+  { t: "The Dude abides.", a: "The Dude" },
+  { t: "That rug really tied the room together.", a: "The Dude" },
+  { t: "Yeah, well, you know, that's just, like, your opinion, man.", a: "The Dude" },
+  { t: "This aggression will not stand, man.", a: "The Dude" },
+  { t: "Careful, man, there's a beverage here!", a: "The Dude" },
+  { t: "You're not wrong, Walter, you're just an asshole.", a: "The Dude" },
+  { t: "New shit has come to light, man.", a: "The Dude" },
+  { t: "Obviously you're not a golfer.", a: "The Dude" },
+  { t: "I'm the Dude. So that's what you call me. You know, that or, uh, His Dudeness, or uh, Duder, or El Duderino if you're not into the whole brevity thing.", a: "The Dude" },
+  { t: "I had a rough night and I hate the fucking Eagles, man.", a: "The Dude" },
+  { t: "This is a very complicated case, Maude. A lotta ins, lotta outs, lotta what-have-yous.", a: "The Dude" },
+  { t: "Is this some kind of Eastern thing?", a: "The Dude" },
+  // Walter
+  { t: "Smokey, this is not 'Nam. This is bowling. There are rules.", a: "Walter Sobchak" },
+  { t: "Am I the only one around here who gives a shit about the rules?!", a: "Walter Sobchak" },
+  { t: "Mark it zero.", a: "Walter Sobchak" },
+  { t: "You're entering a world of pain.", a: "Walter Sobchak" },
+  { t: "You want a toe? I can get you a toe, believe me. There are ways, Dude.", a: "Walter Sobchak" },
+  { t: "Donny, you're out of your element!", a: "Walter Sobchak" },
+  { t: "Shut the fuck up, Donny.", a: "Walter Sobchak" },
+  { t: "Over the line!", a: "Walter Sobchak" },
+  { t: "I don't roll on Shabbos!", a: "Walter Sobchak" },
+  { t: "Life does not stop and start at your convenience, you miserable piece of shit.", a: "Walter Sobchak" },
+  { t: "Chinaman is not the preferred nomenclature, Asian-American, please.", a: "Walter Sobchak" },
+  { t: "This is what happens when you fuck a stranger in the ass!", a: "Walter Sobchak" },
+  { t: "NOTHING IS FUCKED, DUDE!", a: "Walter Sobchak" },
+  { t: "The man in the black pajamas, Dude. Worthy fucking adversary.", a: "Walter Sobchak" },
+  // Walter — deeper cuts
+  { t: "Is this your homework, Larry?", a: "Walter Sobchak" },
+  { t: "I can get you a toe by 3 o'clock this afternoon... with nail polish.", a: "Walter Sobchak" },
+  { t: "Three thousand years of beautiful tradition, from Moses to Sandy Koufax — you're goddamn right I'm living in the fucking past!", a: "Walter Sobchak" },
+  { t: "Eight-year-olds, Dude.", a: "Walter Sobchak" },
+  { t: "You know, I've seen a lot of spinals, Dude, and this guy is a fake.", a: "Walter Sobchak" },
+  { t: "Donny was a good bowler, and a good man.", a: "Walter Sobchak" },
+  // Jesus Quintana
+  { t: "Nobody fucks with the Jesus.", a: "Jesus Quintana" },
+  { t: "You ready to be fucked, man? I see you rolled your way into the semis. Dios mio, man.", a: "Jesus Quintana" },
+  { t: "Let me tell you something, pendejo. You pull any of your crazy shit with us, you flash a piece out on the lanes, I'll take it away from you, stick it up your ass and pull the fucking trigger 'til it goes 'click.'", a: "Jesus Quintana" },
+  // The Stranger
+  { t: "The Dude abides. I don't know about you, but I take comfort in that. It's good knowin' he's out there, the Dude, takin' 'er easy for all us sinners.", a: "The Stranger" },
+  { t: "Sometimes you eat the bar, and sometimes, well, the bar eats you.", a: "The Stranger" },
+  { t: "I like your style, Dude.", a: "The Stranger" },
+  // Maude Lebowski
+  { t: "The word itself is seldom used... Vagina.", a: "Maude Lebowski" },
+  { t: "What makes a man, Mr. Lebowski?", a: "Maude Lebowski" },
+  // The Big Lebowski
+  { t: "Your revolution is over, Mr. Lebowski. Condolences. The bums lost.", a: "The Big Lebowski" },
+  { t: "Strong men also cry... strong men also cry.", a: "The Big Lebowski" },
+  // Nihilists
+  { t: "Ve belief in nossing, Lebowski. Nossing!", a: "Nihilist" },
+  { t: "Ve vant ze money, Lebowski.", a: "Nihilist" },
+  { t: "Ja, it's a bummer, man.", a: "Nihilist" },
+  { t: "Vee cut off your chonson!", a: "Nihilist" },
+  // Donny
+  { t: "Phone's ringing, Dude.", a: "Donny Kerabatsos" },
+  { t: "Are these the Nazis, Walter?", a: "Donny Kerabatsos" },
+  { t: "I am the Walrus.", a: "Donny Kerabatsos" },
+  // Brandt
+  { t: "This is our concern, Dude.", a: "Brandt" },
+];
+
+let quoteMode = localStorage.getItem('dash_quote_mode') || 'stoic';
+
+function setQuoteMode(mode) {
+  quoteMode = mode;
+  localStorage.setItem('dash_quote_mode', mode);
+  syncQuoteModeBtns();
+  renderQuote();
+}
+
+function syncQuoteModeBtns() {
+  const s = document.getElementById('qmode-stoic');
+  const d = document.getElementById('qmode-dude');
+  if (s) s.classList.toggle('active', quoteMode === 'stoic');
+  if (d) d.classList.toggle('active', quoteMode === 'dude');
+}
+
+function getDudeQuote() {
+  const doy = dayOfYear(new Date());
+  return LEBOWSKI_QUOTES[doy % LEBOWSKI_QUOTES.length];
+}
+
 function renderQuote() {
-  const q = getYearShuffledQuote();
+  const q = quoteMode === 'dude' ? getDudeQuote() : getYearShuffledQuote();
+  const hdr = document.getElementById('quote-hdr');
+  if (hdr) hdr.textContent = quoteMode === 'dude' ? 'THE.DUDE' : 'STOIC.QUOTE';
   document.getElementById('quote-text').textContent   = `"${q.t}"`;
   document.getElementById('quote-author').textContent = `— ${q.a}`;
 }
@@ -1935,6 +2386,8 @@ function applyInline(s) {
     .replace(/_([^_]+)_/g, '<em>$1</em>');
 }
 
+let editingTs = null; // null = new note mode; string = ts of note being edited
+
 function renderNotes() {
   const notes = loadNotes();
   const log   = document.getElementById('notes-log');
@@ -1948,11 +2401,14 @@ function renderNotes() {
       month:'short', day:'2-digit', year:'numeric',
       hour:'2-digit', minute:'2-digit', hour12:false,
     }).toUpperCase();
-    const safeTs = n.ts.replace(/'/g, "\\'");
+    const safeTs = n.ts.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `<div class="note-entry">
       <div class="note-ts">
         <span>${ts}</span>
-        <button class="note-del" onclick="deleteNote('${safeTs}')" title="delete">×</button>
+        <div class="note-actions">
+          <button class="note-edit" onclick="startEditNote('${safeTs}')" title="edit">✎</button>
+          <button class="note-del"  onclick="deleteNote('${safeTs}')"    title="delete">×</button>
+        </div>
       </div>
       <div class="note-body">${mdToHtml(n.text)}</div>
     </div>`;
@@ -1960,19 +2416,55 @@ function renderNotes() {
 }
 
 function deleteNote(ts) {
+  if (editingTs === ts) cancelEdit();
   saveNotes(loadNotes().filter(n => n.ts !== ts));
   renderNotes();
+}
+
+function startEditNote(ts) {
+  const note = loadNotes().find(n => n.ts === ts);
+  if (!note) return;
+  editingTs = ts;
+  const inp = document.getElementById('note-input');
+  inp.value = note.text;
+  inp.classList.add('edit-mode');
+  inp.focus();
+  document.getElementById('notes-mode-label').textContent = 'EDIT.NOTE';
+  document.getElementById('notes-mode-label').classList.add('editing');
+  document.getElementById('note-submit-btn').textContent  = 'UPDATE';
+  document.getElementById('note-cancel-btn').style.display = '';
+}
+
+function cancelEdit() {
+  editingTs = null;
+  const inp = document.getElementById('note-input');
+  inp.value = '';
+  inp.classList.remove('edit-mode');
+  document.getElementById('notes-mode-label').textContent = 'NEW.NOTE';
+  document.getElementById('notes-mode-label').classList.remove('editing');
+  document.getElementById('note-submit-btn').textContent  = 'LOG';
+  document.getElementById('note-cancel-btn').style.display = 'none';
 }
 
 function logNote() {
   const inp  = document.getElementById('note-input');
   const text = inp.value.trim();
   if (!text) return;
-  const cutoff = Date.now() - KEEP_MS;
-  const notes  = loadNotes().filter(n => new Date(n.ts).getTime() > cutoff);
-  notes.push({ ts: new Date().toISOString(), text });
-  saveNotes(notes);
-  inp.value = '';
+  if (editingTs) {
+    // Update existing note in-place (preserve original timestamp)
+    const notes = loadNotes();
+    const idx   = notes.findIndex(n => n.ts === editingTs);
+    if (idx !== -1) notes[idx].text = text;
+    saveNotes(notes);
+    cancelEdit();
+  } else {
+    // New note
+    const cutoff = Date.now() - KEEP_MS;
+    const notes  = loadNotes().filter(n => new Date(n.ts).getTime() > cutoff);
+    notes.push({ ts: new Date().toISOString(), text });
+    saveNotes(notes);
+    inp.value = '';
+  }
   renderNotes();
   document.getElementById('notes-log').scrollTop = 0;
 }
@@ -2001,10 +2493,25 @@ function exportNotes(fmt) {
   a.click();
 }
 
-// Ctrl/Cmd+Enter to log
+// Keyboard shortcuts for note input
 document.getElementById('note-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); logNote(); }
+  if (e.key === 'Escape' && editingTs) { e.preventDefault(); cancelEdit(); }
 });
+
+// Persist textarea height across sessions
+(function() {
+  const inp = document.getElementById('note-input');
+  const saved = localStorage.getItem('dash_note_h');
+  if (saved) inp.style.height = saved;
+  let resizeTimer;
+  new ResizeObserver(() => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (inp.style.height) localStorage.setItem('dash_note_h', inp.style.height);
+    }, 250);
+  }).observe(inp);
+})();
 
 // =======================================================
 // THEME
@@ -2133,6 +2640,10 @@ function renderZones() {
     <div class="tz-row">
       <span class="tz-label">${z.label.toUpperCase()}</span>
       <div class="tz-right">
+        <div class="tz-move-col">
+          <button class="tz-move" onclick="moveZone(${i}, -1)" title="move up" ${i === 0 ? 'disabled' : ''}>▲</button>
+          <button class="tz-move" onclick="moveZone(${i}, 1)" title="move down" ${i === zones.length - 1 ? 'disabled' : ''}>▼</button>
+        </div>
         <span class="tz-time" id="tz-t-${i}">—</span>
         <span class="tz-day"  id="tz-d-${i}"></span>
         <button class="tz-del" onclick="removeZone(${i})" title="remove">×</button>
@@ -2140,6 +2651,15 @@ function renderZones() {
     </div>`).join('');
   // Hide + button at max
   document.getElementById('tz-add-btn').style.visibility = zones.length >= 5 ? 'hidden' : 'visible';
+}
+
+function moveZone(i, dir) {
+  const zones = loadZones();
+  const j = i + dir;
+  if (j < 0 || j >= zones.length) return;
+  [zones[i], zones[j]] = [zones[j], zones[i]];
+  saveZones(zones);
+  renderZones();
 }
 
 function removeZone(i) {
@@ -2236,22 +2756,427 @@ function calReset() {
 // INIT
 // =======================================================
 
-(function init() {
+// =======================================================
+// TIMER
+// =======================================================
+
+let timerInterval  = null;
+let timerRunning   = false;
+let timerMode      = 'pomo';
+let timerSeconds   = 25 * 60;
+let timerSoundOn   = localStorage.getItem('dash_timer_sound') !== 'off';
+let pomoPhase      = 'work';   // 'work' | 'short' | 'long'
+let pomoWorkDone   = 0;        // completed work sessions in current cycle (0-4)
+let customDuration = 25 * 60; // saved custom duration for reset
+
+const POMO_WORK  = 25 * 60;
+const POMO_SHORT =  5 * 60;
+const POMO_LONG  = 15 * 60;
+
+function renderTimer() {
+  const m   = Math.floor(timerSeconds / 60);
+  const s   = timerSeconds % 60;
+  const disp = document.getElementById('timer-display');
+  disp.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  disp.classList.toggle('running', timerRunning);
+  disp.classList.toggle('done',    !timerRunning && timerSeconds === 0);
+  document.getElementById('timer-start-btn').textContent = timerRunning ? 'PAUSE' : 'START';
+
+  if (timerMode === 'pomo') {
+    const phases = { work:'WORK', short:'SHORT BREAK', long:'LONG BREAK' };
+    document.getElementById('timer-phase-label').textContent = phases[pomoPhase];
+    const dots = Array.from({length:4}, (_,i) => i < pomoWorkDone ? '●' : '○').join(' ');
+    document.getElementById('timer-dots').textContent = dots;
+  }
+}
+
+function timerTick() {
+  if (timerSeconds > 0) {
+    timerSeconds--;
+    renderTimer();
+  }
+  if (timerSeconds === 0) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerRunning  = false;
+    playTimerDone();
+    renderTimer();
+    // Advance Pomodoro phase (but don't auto-start — user controls start)
+    if (timerMode === 'pomo') {
+      if (pomoPhase === 'work') {
+        pomoWorkDone++;
+        if (pomoWorkDone >= 4) {
+          pomoPhase   = 'long';
+          timerSeconds = POMO_LONG;
+          pomoWorkDone = 4; // keep dots full for long break display
+        } else {
+          pomoPhase   = 'short';
+          timerSeconds = POMO_SHORT;
+        }
+      } else {
+        if (pomoPhase === 'long') pomoWorkDone = 0;
+        pomoPhase   = 'work';
+        timerSeconds = POMO_WORK;
+      }
+      renderTimer();
+    }
+  }
+}
+
+function timerToggle() {
+  if (timerRunning) {
+    // Pause
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerRunning  = false;
+    renderTimer();
+  } else {
+    // Start — in custom mode, read inputs first if timer is fresh
+    if (timerMode === 'custom' && timerSeconds === customDuration) {
+      const secs = getCustomInputTime();
+      if (secs <= 0) return;
+      timerSeconds   = secs;
+      customDuration = secs;
+    }
+    if (timerSeconds === 0) return;
+    // Hide custom inputs while running
+    document.getElementById('timer-custom-inputs').style.display = 'none';
+    timerRunning  = true;
+    timerInterval = setInterval(timerTick, 1000);
+    renderTimer();
+  }
+}
+
+function timerReset() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timerRunning  = false;
+  if (timerMode === 'pomo') {
+    pomoPhase    = 'work';
+    pomoWorkDone = 0;
+    timerSeconds = POMO_WORK;
+  } else {
+    timerSeconds = customDuration;
+    setCustomInputsFromSecs(customDuration);
+    document.getElementById('timer-custom-inputs').style.display = 'flex';
+  }
+  renderTimer();
+}
+
+function setTimerMode(mode) {
+  if (timerRunning) timerReset();
+  timerMode = mode;
+  document.getElementById('tm-pomo').classList.toggle('active', mode === 'pomo');
+  document.getElementById('tm-custom').classList.toggle('active', mode === 'custom');
+
+  if (mode === 'pomo') {
+    pomoPhase    = 'work';
+    pomoWorkDone = 0;
+    timerSeconds = POMO_WORK;
+    document.getElementById('timer-phase-row').style.display    = '';
+    document.getElementById('timer-custom-inputs').style.display = 'none';
+  } else {
+    timerSeconds   = customDuration;
+    document.getElementById('timer-phase-row').style.display    = 'none';
+    document.getElementById('timer-custom-inputs').style.display = 'flex';
+    setCustomInputsFromSecs(customDuration);
+  }
+  renderTimer();
+}
+
+function getCustomInputTime() {
+  const m = Math.min(99, Math.max(0, parseInt(document.getElementById('timer-min').value) || 0));
+  const s = Math.min(59, Math.max(0, parseInt(document.getElementById('timer-sec').value) || 0));
+  return m * 60 + s;
+}
+
+function setCustomInputsFromSecs(secs) {
+  document.getElementById('timer-min').value = String(Math.floor(secs / 60)).padStart(2,'0');
+  document.getElementById('timer-sec').value = String(secs % 60).padStart(2,'0');
+}
+
+function onCustomInput() {
+  if (!timerRunning) {
+    timerSeconds   = getCustomInputTime();
+    customDuration = timerSeconds;
+    renderTimer();
+  }
+}
+
+function toggleTimerSound() {
+  timerSoundOn = !timerSoundOn;
+  localStorage.setItem('dash_timer_sound', timerSoundOn ? 'on' : 'off');
+  const btn = document.getElementById('timer-sound-btn');
+  btn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
+  btn.classList.toggle('muted', !timerSoundOn);
+}
+
+function playTimerDone() {
+  if (!timerSoundOn) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [[0, 660], [0.28, 880], [0.56, 660]].forEach(([delay, freq]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + delay + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.35);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.4);
+    });
+  } catch(e) {}
+}
+
+// =======================================================
+// TO-DO LIST
+// =======================================================
+
+const TODO_KEY = 'dash_todos_v1';
+
+function loadTodos() {
+  try { return JSON.parse(localStorage.getItem(TODO_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveTodos(arr) {
+  localStorage.setItem(TODO_KEY, JSON.stringify(arr));
+}
+
+function renderTodos() {
+  const todos = loadTodos();
+  const list  = document.getElementById('todo-list');
+  if (!todos.length) {
+    list.innerHTML = '<div class="todo-empty">// no tasks yet</div>';
+    return;
+  }
+  list.innerHTML = todos.map((t, i) => {
+    const safeId   = t.id.replace(/'/g, "\\'");
+    const safeText = t.text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const isFirst  = i === 0;
+    const isLast   = i === todos.length - 1;
+    return `<div class="todo-item${t.done ? ' done' : ''}">
+      <input type="checkbox" class="todo-cb" ${t.done ? 'checked' : ''}
+             onchange="toggleTodo('${safeId}')">
+      <span class="todo-text">${safeText}</span>
+      <div class="todo-move-col">
+        <button class="todo-move" onclick="moveTodo('${safeId}', -1)" title="move up" ${isFirst ? 'disabled' : ''}>▲</button>
+        <button class="todo-move" onclick="moveTodo('${safeId}', 1)" title="move down" ${isLast ? 'disabled' : ''}>▼</button>
+      </div>
+      <button class="todo-del" onclick="deleteTodo('${safeId}')" title="delete">×</button>
+    </div>`;
+  }).join('');
+}
+
+function addTodo() {
+  const inp  = document.getElementById('todo-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  const todos = loadTodos();
+  todos.push({ id: Date.now().toString(), text, done: false });
+  saveTodos(todos);
+  inp.value = '';
+  renderTodos();
+}
+
+function toggleTodo(id) {
+  const todos = loadTodos();
+  const t     = todos.find(t => t.id === id);
+  if (t) t.done = !t.done;
+  saveTodos(todos);
+  renderTodos();
+}
+
+function moveTodo(id, dir) {
+  const todos = loadTodos();
+  const i = todos.findIndex(t => t.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= todos.length) return;
+  [todos[i], todos[j]] = [todos[j], todos[i]];
+  saveTodos(todos);
+  renderTodos();
+}
+
+function deleteTodo(id) {
+  saveTodos(loadTodos().filter(t => t.id !== id));
+  renderTodos();
+}
+
+function clearAllTodos() {
+  saveTodos([]);
+  renderTodos();
+}
+
+// Enter key to add todo
+document.getElementById('todo-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addTodo(); }
+});
+
+// =======================================================
+// LAYOUT CONTROLS (row reorder + panel swap)
+// =======================================================
+const ROW_ORDER_KEY  = 'dash_row_order';
+const PANEL_SWAP_KEY = 'dash_panel_swaps';
+
+function initLayoutControls() {
+  const container = document.getElementById('dashboard-rows');
+
+  // 1. Restore saved row order (reorders bare .row elements)
+  applyRowOrder(container);
+
+  // 2. Restore panel swaps before wrapping
+  initPanelSwaps();
+
+  // 3. Wrap each row with controls sidebar
+  Array.from(container.querySelectorAll(':scope > .row')).forEach(row => {
+    wrapRow(row, container);
+  });
+
+  // 4. Sync disabled states on ▲▼ buttons
+  updateRowButtons(container);
+}
+
+function wrapRow(row, container) {
+  const wrap = document.createElement('div');
+  wrap.className = 'row-wrap';
+
+  const ctrl = document.createElement('div');
+  ctrl.className = 'row-ctrl';
+
+  const upBtn = document.createElement('button');
+  upBtn.className = 'rc-btn rc-up';
+  upBtn.title = 'move up';
+  upBtn.textContent = '▲';
+  upBtn.onclick = () => rowMove(row.id, -1);
+
+  const dnBtn = document.createElement('button');
+  dnBtn.className = 'rc-btn rc-dn';
+  dnBtn.title = 'move down';
+  dnBtn.textContent = '▼';
+  dnBtn.onclick = () => rowMove(row.id, 1);
+
+  ctrl.appendChild(upBtn);
+
+  if (row.classList.contains('row-2') || row.classList.contains('row-3')) {
+    const swapBtn = document.createElement('button');
+    swapBtn.className = 'rc-btn rc-swap';
+    swapBtn.title = 'swap panels';
+    swapBtn.textContent = '⇄';
+    swapBtn.onclick = () => swapPanels(row.id);
+    ctrl.appendChild(swapBtn);
+  }
+
+  ctrl.appendChild(dnBtn);
+
+  container.insertBefore(wrap, row);
+  wrap.appendChild(row);
+  wrap.appendChild(ctrl);
+}
+
+function rowMove(id, dir) {
+  const container = document.getElementById('dashboard-rows');
+  const wraps = Array.from(container.querySelectorAll(':scope > .row-wrap'));
+  const row   = document.getElementById(id);
+  const wrap  = row.closest('.row-wrap');
+  const idx   = wraps.indexOf(wrap);
+  const target = wraps[idx + dir];
+  if (!target) return;
+
+  if (dir === -1) {
+    container.insertBefore(wrap, target);
+  } else {
+    container.insertBefore(target, wrap);
+  }
+
+  saveRowOrder(container);
+  updateRowButtons(container);
+}
+
+function swapPanels(id) {
+  const row = document.getElementById(id);
+  const panels = Array.from(row.querySelectorAll(':scope > .panel'));
+  if (panels.length < 2) return;
+  row.appendChild(panels[0]);   // move first to end
+
+  const swaps = JSON.parse(localStorage.getItem(PANEL_SWAP_KEY) || '{}');
+  swaps[id] = ((swaps[id] || 0) + 1) % 2;
+  localStorage.setItem(PANEL_SWAP_KEY, JSON.stringify(swaps));
+}
+
+function saveRowOrder(container) {
+  const wraps = Array.from(container.querySelectorAll(':scope > .row-wrap'));
+  const order = wraps.map(w => w.querySelector('.row').id);
+  localStorage.setItem(ROW_ORDER_KEY, JSON.stringify(order));
+}
+
+function applyRowOrder(container) {
+  const saved = localStorage.getItem(ROW_ORDER_KEY);
+  if (!saved) return;
+  try {
+    const order = JSON.parse(saved);
+    order.forEach(id => {
+      const row = document.getElementById(id);
+      if (row) container.appendChild(row);
+    });
+  } catch(e) {}
+}
+
+function initPanelSwaps() {
+  const swaps = JSON.parse(localStorage.getItem(PANEL_SWAP_KEY) || '{}');
+  Object.entries(swaps).forEach(([id, count]) => {
+    if (count === 1) {
+      const row = document.getElementById(id);
+      if (!row) return;
+      const panels = Array.from(row.querySelectorAll(':scope > .panel'));
+      if (panels.length >= 2) row.appendChild(panels[0]);
+    }
+  });
+}
+
+function updateRowButtons(container) {
+  const wraps = Array.from(container.querySelectorAll(':scope > .row-wrap'));
+  wraps.forEach((wrap, i) => {
+    const up = wrap.querySelector('.rc-up');
+    const dn = wrap.querySelector('.rc-dn');
+    if (up) up.disabled = (i === 0);
+    if (dn) dn.disabled = (i === wraps.length - 1);
+  });
+}
+
+// =======================================================
+// INIT
+// =======================================================
+
+(function() {
   setTheme(localStorage.getItem('dash_theme') || 'green');
   syncClockFmtBtns();
+  syncWxUnitBtns();
+  syncQuoteModeBtns();
   initNamePrompt();
   renderGreeting();
   renderZones();
   updateClock();
   setInterval(updateClock, 1000);
-  // Re-render greeting every minute in case the time-of-day label changes
   setInterval(renderGreeting, 60000);
   loadWeather();
   renderWord();
   renderQuote();
   renderNotes();
   renderCalendar();
+  // Timer
+  renderTimer();
+  const soundBtn = document.getElementById('timer-sound-btn');
+  soundBtn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
+  soundBtn.classList.toggle('muted', !timerSoundOn);
+  // Todo
+  renderTodos();
+  // Layout controls
+  initLayoutControls();
 })();
+
 </script>
 </body>
 </html>
