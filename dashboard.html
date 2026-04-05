@@ -6,7 +6,6 @@
   <title>// DASHBOARD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     /* ===================================================
        THEMES
@@ -1243,6 +1242,19 @@
 </div><!-- /dashboard -->
 
 <script>
+// ── OAuth PKCE popup redirect handler (runs in the popup window) ──────────
+(function() {
+  const qs = new URLSearchParams(location.search);
+  if (window.opener && qs.has('code')) {
+    window.opener.postMessage(
+      { type: 'dash_oauth', code: qs.get('code'), state: qs.get('state') },
+      location.origin
+    );
+    window.close();
+    return;
+  }
+})();
+
 // =======================================================
 // DATA: TOCFL LEVEL 4–5 WORDS
 // =======================================================
@@ -3410,16 +3422,193 @@ const SYNC_KEYS = [
   'dash_note_h', 'dash_google_task_list', 'dash_remind_time',
 ];
 
-let gToken         = null;  // access token (memory only, never persisted)
-let gTokenExpiry   = 0;
-let gTaskClient    = null;
-let gTasksCache    = [];
-let gSyncTimer     = null;
-let gDriveFileId   = null;
+let gToken          = null;  // access token (memory only)
+let gTokenExpiry    = 0;
+let gTasksCache     = [];
+let gSyncTimer      = null;
+let gDriveFileId    = null;
 let gDriveSaveTimer = null;
+
+// PKCE persistent-auth keys (NOT in SYNC_KEYS — device-local credentials)
+const G_REFRESH_KEY = 'dash_g_refresh';
+const G_ACCESS_KEY  = 'dash_g_access';
+const G_EXPIRY_KEY  = 'dash_g_expiry';
+
+const OAUTH_SCOPES = [
+  'https://www.googleapis.com/auth/tasks',
+  'https://www.googleapis.com/auth/drive.appdata',
+].join(' ');
+
+const REDIRECT_URI = 'https://uncle-jasper.github.io/console-dashboard/dashboard.html';
+const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
+
+// ── PKCE helpers ─────────────────────────────────────────
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+function makeVerifier() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return b64url(arr);
+}
+async function makeChallenge(verifier) {
+  const enc = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', enc);
+  return b64url(digest);
+}
+
+// ── Token storage ────────────────────────────────────────
+function storeTokens(accessToken, expiresIn, refreshToken) {
+  gToken       = accessToken;
+  gTokenExpiry = Date.now() + (expiresIn * 1000) - 60000;
+  // These keys are NOT in SYNC_KEYS, so the Drive sync wrapper won't fire
+  localStorage.setItem(G_ACCESS_KEY, accessToken);
+  localStorage.setItem(G_EXPIRY_KEY, String(gTokenExpiry));
+  if (refreshToken) localStorage.setItem(G_REFRESH_KEY, refreshToken);
+}
+
+function clearStoredTokens() {
+  gToken = null; gTokenExpiry = 0;
+  localStorage.removeItem(G_ACCESS_KEY);
+  localStorage.removeItem(G_EXPIRY_KEY);
+  localStorage.removeItem(G_REFRESH_KEY);
+}
 
 function isGConnected() {
   return !!(gToken && Date.now() < gTokenExpiry);
+}
+
+// ── Try to restore session from localStorage on page load ─
+async function tryRestoreSession() {
+  const storedAccess = localStorage.getItem(G_ACCESS_KEY);
+  const storedExpiry = parseInt(localStorage.getItem(G_EXPIRY_KEY) || '0', 10);
+  const refresh = localStorage.getItem(G_REFRESH_KEY);
+
+  if (storedAccess && Date.now() < storedExpiry) {
+    // Access token still valid
+    gToken       = storedAccess;
+    gTokenExpiry = storedExpiry;
+    onConnected();
+    return;
+  }
+  if (refresh) {
+    // Access token expired — try to refresh
+    await doRefresh(refresh);
+    return;
+  }
+  // No stored credentials
+  setGStatus('offline');
+}
+
+// ── Refresh access token using stored refresh token ───────
+async function doRefresh(refreshToken) {
+  const cid = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
+  try {
+    const resp = await fetch(TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     cid,
+        grant_type:    'refresh_token',
+        refresh_token: refreshToken,
+      }),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    storeTokens(data.access_token, data.expires_in, data.refresh_token || null);
+    onConnected();
+  } catch (e) {
+    console.warn('Token refresh failed:', e);
+    clearStoredTokens();
+    setGStatus('offline');
+  }
+}
+
+// ── Start PKCE authorization flow (opens popup) ───────────
+async function connectGoogle() {
+  const cid = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
+  const verifier  = makeVerifier();
+  const challenge = await makeChallenge(verifier);
+  const state     = b64url(crypto.getRandomValues(new Uint8Array(8)));
+
+  sessionStorage.setItem('pkce_verifier', verifier);
+  sessionStorage.setItem('pkce_state',    state);
+
+  const params = new URLSearchParams({
+    client_id:             cid,
+    redirect_uri:          REDIRECT_URI,
+    response_type:         'code',
+    scope:                 OAUTH_SCOPES,
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
+    state,
+    access_type:           'offline',
+    prompt:                'consent',
+  });
+
+  const popup = window.open(
+    'https://accounts.google.com/o/oauth2/v2/auth?' + params,
+    'google_oauth',
+    'width=500,height=620,left=200,top=100'
+  );
+  if (!popup) { alert('Pop-up blocked — please allow pop-ups for this site.'); return; }
+
+  window.addEventListener('message', handleAuthCode, { once: false });
+}
+
+// ── Receive auth code from popup via postMessage ──────────
+async function handleAuthCode(event) {
+  if (event.origin !== location.origin) return;
+  if (!event.data || event.data.type !== 'dash_oauth') return;
+  window.removeEventListener('message', handleAuthCode);
+
+  const { code, state } = event.data;
+  const expectedState = sessionStorage.getItem('pkce_state');
+  const verifier      = sessionStorage.getItem('pkce_verifier');
+  sessionStorage.removeItem('pkce_state');
+  sessionStorage.removeItem('pkce_verifier');
+
+  if (state !== expectedState) { alert('OAuth state mismatch — please try again.'); return; }
+
+  const cid = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
+  try {
+    const resp = await fetch(TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     cid,
+        code,
+        code_verifier: verifier,
+        grant_type:    'authorization_code',
+        redirect_uri:  REDIRECT_URI,
+      }),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error_description || data.error);
+    storeTokens(data.access_token, data.expires_in, data.refresh_token);
+    onConnected();
+  } catch (e) {
+    alert('Google sign-in failed: ' + e.message);
+    setGStatus('offline');
+  }
+}
+
+// ── Called once we have a valid access token ──────────────
+function onConnected() {
+  requestNotifPermission();
+  loadGTasks();
+  driveLoad();
+  if (gSyncTimer) clearInterval(gSyncTimer);
+  gSyncTimer = setInterval(() => {
+    // Re-check token expiry on each sync tick; refresh if needed
+    const refresh = localStorage.getItem(G_REFRESH_KEY);
+    if (!isGConnected() && refresh) {
+      doRefresh(refresh).then(() => { if (isGConnected()) loadGTasks(); });
+    } else if (isGConnected()) {
+      loadGTasks();
+    }
+  }, 60000);
 }
 
 function saveGoogleCfg() {
@@ -3431,53 +3620,31 @@ function saveGoogleCfg() {
 }
 
 function initGoogleTasks() {
-  if (!window.google?.accounts?.oauth2) {
-    setTimeout(initGoogleTasks, 600);
-    return;
-  }
-  const cid = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
-  gTaskClient = google.accounts.oauth2.initTokenClient({
-    client_id: cid,
-    scope: [
-      'https://www.googleapis.com/auth/tasks',
-      'https://www.googleapis.com/auth/drive.appdata',
-    ].join(' '),
-    callback: handleGToken,
-  });
-  // Attempt silent re-auth — no popup if Google session is still active
-  gTaskClient.requestAccessToken({ prompt: '' });
-}
-
-function handleGToken(resp) {
-  if (resp.error) { setGStatus('offline'); return; }
-  gToken       = resp.access_token;
-  gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
-  requestNotifPermission();
-  loadGTasks();
-  driveLoad();
-  if (gSyncTimer) clearInterval(gSyncTimer);
-  gSyncTimer = setInterval(loadGTasks, 60000);
+  // PKCE flow — try to restore a persisted session immediately
+  tryRestoreSession();
 }
 
 function toggleGoogleConnect() {
   if (isGConnected()) {
     disconnectGoogle();
   } else {
-    if (!gTaskClient) {
-      if (!window.google?.accounts?.oauth2) {
-        alert('Google Identity Services not ready yet — try again in a moment.');
-        return;
-      }
-      initGoogleTasks();
-      return;
+    const refresh = localStorage.getItem(G_REFRESH_KEY);
+    if (refresh) {
+      doRefresh(refresh);
+    } else {
+      connectGoogle();
     }
-    gTaskClient.requestAccessToken({ prompt: 'select_account' });
   }
 }
 
 function disconnectGoogle() {
-  if (gToken) google.accounts.oauth2.revoke(gToken, () => {});
-  gToken = null; gTokenExpiry = 0; gTasksCache = []; gDriveFileId = null;
+  // Best-effort revoke of the access token
+  if (gToken) {
+    fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(gToken), { method: 'POST' })
+      .catch(() => {});
+  }
+  clearStoredTokens();
+  gTasksCache = []; gDriveFileId = null;
   if (gSyncTimer)     { clearInterval(gSyncTimer);    gSyncTimer = null; }
   if (gDriveSaveTimer){ clearTimeout(gDriveSaveTimer); gDriveSaveTimer = null; }
   setGStatus('offline');
