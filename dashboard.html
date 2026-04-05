@@ -477,6 +477,17 @@
     .todo-due.overdue { color: var(--accent); border-color: var(--accent); }
     .todo-due.today   { color: var(--fg);     border-color: var(--fg); }
     .todo-due.future  { color: var(--fg-muted); border-color: var(--fg-muted); }
+    .todo-group-hdr {
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      color: var(--fg-muted);
+      border-top: 1px solid var(--fg-muted);
+      padding: 5px 0 3px;
+      margin-top: 3px;
+    }
+    .todo-list > .todo-group-hdr:first-child { border-top: none; margin-top: 0; padding-top: 1px; }
+    .todo-group-hdr.grp-overdue { color: var(--accent); border-color: var(--accent); }
+    .todo-group-hdr.grp-today   { color: var(--fg-dim); border-color: var(--fg-dim); }
     .todo-list { max-height: 180px; overflow-y: auto; }
     .todo-item {
       display: flex;
@@ -3026,37 +3037,64 @@ function renderTodos() {
     list.innerHTML = '<div class="todo-empty">// no tasks yet</div>';
     return;
   }
-  // Sort: undone with due date first (earliest → latest), then undone no-date, then done
-  const FAR = '9999-99-99';
-  const todos = [...raw].sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;
-    const da = a.due || FAR;
-    const db = b.due || FAR;
-    return da < db ? -1 : da > db ? 1 : 0;
+
+  const now      = new Date();
+  const todayStr = now.toISOString().substring(0, 10);
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+  const tomStr   = tomorrow.toISOString().substring(0, 10);
+  const weekEnd  = new Date(now); weekEnd.setDate(now.getDate() + 7);
+  const weekStr  = weekEnd.toISOString().substring(0, 10);
+
+  const groups = [
+    { key: 'overdue',  label: 'OVERDUE',   cls: 'grp-overdue', tasks: [] },
+    { key: 'today',    label: 'TODAY',      cls: 'grp-today',   tasks: [] },
+    { key: 'tomorrow', label: 'TOMORROW',   cls: '',            tasks: [] },
+    { key: 'week',     label: 'THIS WEEK',  cls: '',            tasks: [] },
+    { key: 'later',    label: 'LATER',      cls: '',            tasks: [] },
+    { key: 'nodate',   label: 'NO DATE',    cls: '',            tasks: [] },
+    { key: 'done',     label: 'DONE',       cls: '',            tasks: [] },
+  ];
+
+  raw.forEach(t => {
+    if (t.done)             { groups[6].tasks.push(t); return; }
+    if (!t.due)             { groups[5].tasks.push(t); return; }
+    if (t.due < todayStr)   { groups[0].tasks.push(t); return; }
+    if (t.due === todayStr) { groups[1].tasks.push(t); return; }
+    if (t.due === tomStr)   { groups[2].tasks.push(t); return; }
+    if (t.due <= weekStr)   { groups[3].tasks.push(t); return; }
+    groups[4].tasks.push(t);
   });
-  const google = isGConnected();
-  const todayStr = new Date().toISOString().substring(0, 10);
-  list.innerHTML = todos.map((t, i) => {
-    const safeId   = encodeURIComponent(t.id);
-    const safeText = t.text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const isFirst  = i === 0;
-    const isLast   = i === todos.length - 1;
-    let dueBadge = '';
-    if (t.due) {
-      const cls  = t.due < todayStr ? 'overdue' : t.due === todayStr ? 'today' : 'future';
-      const d    = new Date(t.due + 'T12:00:00');
-      const lbl  = t.due === todayStr ? 'TODAY'
-                 : d.toLocaleDateString('en-US', { month:'short', day:'numeric' }).toUpperCase();
-      dueBadge = `<span class="todo-due ${cls}">${lbl}</span>`;
-    }
-    return `<div class="todo-item${t.done ? ' done' : ''}">
-      <input type="checkbox" class="todo-cb" ${t.done ? 'checked' : ''}
-             onchange="toggleTodo('${safeId}')">
-      <span class="todo-text">${safeText}</span>
-      ${dueBadge}
-      <button class="todo-del" onclick="deleteTodo('${safeId}')" title="delete">×</button>
-    </div>`;
-  }).join('');
+
+  // Within each group sort earliest first
+  groups.forEach(g => g.tasks.sort((a, b) => (a.due || '').localeCompare(b.due || '')));
+
+  let html = '';
+  groups.forEach(g => {
+    if (!g.tasks.length) return;
+    html += `<div class="todo-group-hdr${g.cls ? ' ' + g.cls : ''}">${g.label}</div>`;
+    g.tasks.forEach(t => {
+      const safeId   = encodeURIComponent(t.id);
+      const safeText = t.text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      // Show specific date badge where it adds useful info beyond the group header
+      let dueBadge = '';
+      if (t.due && (g.key === 'overdue' || g.key === 'week' || g.key === 'later' || g.key === 'done')) {
+        const d   = new Date(t.due + 'T12:00:00');
+        const lbl = g.key === 'week'
+          ? d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }).toUpperCase()
+          : d.toLocaleDateString('en-US', { month:'short', day:'numeric' }).toUpperCase();
+        const cls = g.key === 'overdue' ? 'overdue' : 'future';
+        dueBadge  = `<span class="todo-due ${cls}">${lbl}</span>`;
+      }
+      html += `<div class="todo-item${t.done ? ' done' : ''}">
+        <input type="checkbox" class="todo-cb" ${t.done ? 'checked' : ''}
+               onchange="toggleTodo('${safeId}')">
+        <span class="todo-text">${safeText}</span>
+        ${dueBadge}
+        <button class="todo-del" onclick="deleteTodo('${safeId}')" title="delete">×</button>
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
 }
 
 function addTodo() {
