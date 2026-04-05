@@ -3350,21 +3350,61 @@ function editTodo(encodedId) {
   const span    = item.querySelector('.todo-text');
   const current = span.textContent;
 
+  // Find current due date from cache or localStorage
+  let currentDue = '';
+  if (isGConnected()) {
+    const t = gTasksCache.find(t => t.id === id);
+    if (t && t.due) currentDue = t.due;
+  } else {
+    const t = loadTodos().find(t => t.id === id);
+    if (t && t.due) currentDue = t.due;
+  }
+
+  // Text input
   const inp = document.createElement('input');
   inp.type      = 'text';
   inp.className = 'todo-edit-input';
   inp.value     = current;
+
+  // Date input
+  const dateInp = document.createElement('input');
+  dateInp.type      = 'date';
+  dateInp.className = 'todo-date-input';
+  dateInp.value     = currentDue;
+  dateInp.style.marginLeft = '6px';
+  dateInp.style.width      = '120px';
+
   span.replaceWith(inp);
+  // Insert date input after text input, before the due badge / buttons
+  inp.after(dateInp);
   inp.focus();
   inp.select();
 
   let saved = false;
-  const save = () => {
+  const save = (e) => {
+    // Don't save if focus moved to the date input
+    if (e && e.relatedTarget === dateInp) return;
     if (saved) return;
     saved = true;
     const newText = inp.value.trim();
-    if (newText && newText !== current) {
-      updateTodoText(id, newText);
+    const newDue  = dateInp.value || null;
+    const textChanged = newText && newText !== current;
+    const dueChanged  = newDue !== currentDue;
+    if (textChanged || dueChanged) {
+      updateTodo(id, textChanged ? newText : current, newDue);
+    } else {
+      renderTodos();
+    }
+  };
+  const saveFromDate = () => {
+    if (saved) return;
+    saved = true;
+    const newText = inp.value.trim();
+    const newDue  = dateInp.value || null;
+    const textChanged = newText && newText !== current;
+    const dueChanged  = newDue !== currentDue;
+    if (textChanged || dueChanged) {
+      updateTodo(id, textChanged ? newText : current, newDue);
     } else {
       renderTodos();
     }
@@ -3374,22 +3414,34 @@ function editTodo(encodedId) {
     if (e.key === 'Escape') { saved = true; renderTodos(); }
   });
   inp.addEventListener('blur', save);
+  dateInp.addEventListener('blur', saveFromDate);
+  dateInp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); dateInp.blur(); }
+    if (e.key === 'Escape') { saved = true; renderTodos(); }
+  });
 }
 
-function updateTodoText(id, newText) {
-  if (isGConnected()) { gtUpdateText(id, newText); return; }
+function updateTodo(id, newText, newDue) {
+  if (isGConnected()) { gtUpdateTask(id, newText, newDue); return; }
   const todos = loadTodos();
   const t = todos.find(t => t.id === id);
-  if (t) { t.text = newText; saveTodos(todos); }
+  if (t) { t.text = newText; t.due = newDue; saveTodos(todos); }
   renderTodos();
 }
 
-async function gtUpdateText(id, newText) {
+function updateTodoText(id, newText) {
+  updateTodo(id, newText, null);
+}
+
+async function gtUpdateTask(id, newText, newDue) {
   const listId = localStorage.getItem(GTASKLIST_KEY) || '@default';
+  const body = { title: newText };
+  if (newDue)  body.due = newDue + 'T00:00:00.000Z';
+  if (!newDue) body.due = null;
   try {
-    await gtFetch('PATCH', `/lists/${listId}/tasks/${encodeURIComponent(id)}`, { title: newText });
+    await gtFetch('PATCH', `/lists/${listId}/tasks/${encodeURIComponent(id)}`, body);
     const t = gTasksCache.find(t => t.id === id);
-    if (t) t.text = newText;
+    if (t) { t.text = newText; t.due = newDue; }
     renderTodos();
   } catch(e) {}
 }
