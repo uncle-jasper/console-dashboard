@@ -943,20 +943,6 @@
             <input id="cfg-google-cid" class="sp-input" type="text" placeholder="….apps.googleusercontent.com">
             <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveGoogleCfg()">SET</button>
           </div>
-          <div class="sp-divider">OBSIDIAN</div>
-          <div class="sp-row">
-            <span class="sp-label">VAULT</span>
-            <input id="cfg-obs-vault" class="sp-input" type="text" maxlength="64" placeholder="My Vault">
-          </div>
-          <div class="sp-row">
-            <span class="sp-label">NOTE→</span>
-            <input id="cfg-obs-notes" class="sp-input" type="text" maxlength="128" placeholder="Inbox/Quick Notes">
-          </div>
-          <div class="sp-row">
-            <span class="sp-label">TODO→</span>
-            <input id="cfg-obs-todos" class="sp-input" type="text" maxlength="128" placeholder="Inbox/Tasks">
-            <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveObsidianCfg()">SET</button>
-          </div>
         </div>
       </div>
     </div>
@@ -1087,7 +1073,6 @@
           <div class="notes-compose-btns">
             <button class="btn btn-primary" id="note-submit-btn" onclick="logNote()">LOG</button>
             <button class="btn" id="note-cancel-btn" onclick="cancelEdit()" style="display:none">CANCEL</button>
-            <button class="btn" onclick="sendNoteToObsidian()" title="Send to Obsidian vault">→OBS</button>
             <button class="btn" onclick="exportNotes('md')">EXP.MD</button>
             <button class="btn" onclick="exportNotes('txt')">EXP.TXT</button>
           </div>
@@ -1139,8 +1124,6 @@
           <span id="gtask-status" class="gtask-status"></span>
           <button id="gtask-btn" class="btn" onclick="toggleGoogleConnect()"
                   style="font-size:9px;padding:2px 8px;letter-spacing:0.1em" title="Connect Google Tasks">GOOG</button>
-          <button class="btn" onclick="sendTodosToObsidian()"
-                  style="font-size:9px;padding:2px 8px;letter-spacing:0.1em" title="Send tasks to Obsidian vault">→OBS</button>
           <button class="btn" onclick="clearAllTodos()"
                   style="font-size:9px;padding:2px 8px;letter-spacing:0.1em">CLEAR ALL</button>
         </div>
@@ -2598,9 +2581,6 @@ function toggleSettings(e) {
   if (open) {
     document.getElementById('cfg-name').value = localStorage.getItem('dash_name') || '';
     document.getElementById('cfg-google-cid').value = localStorage.getItem('dash_google_client_id') || '';
-    document.getElementById('cfg-obs-vault').value = localStorage.getItem('dash_obsidian_vault') || '';
-    document.getElementById('cfg-obs-notes').value = localStorage.getItem('dash_obsidian_notes_file') || '';
-    document.getElementById('cfg-obs-todos').value = localStorage.getItem('dash_obsidian_todos_file') || '';
     syncClockFmtBtns();
   }
 }
@@ -3094,8 +3074,7 @@ const SYNC_KEYS = [
   'dash_theme', 'dash_name', 'dash_clock_fmt', 'dash_wx_unit',
   'dash_quote_mode', 'dash_timer_sound', 'dashboard_notes_v1',
   'dash_zones', 'dash_todos_v1', 'dash_row_order', 'dash_panel_swaps',
-  'dash_note_h', 'dash_obsidian_vault', 'dash_obsidian_notes_file',
-  'dash_obsidian_todos_file', 'dash_google_task_list',
+  'dash_note_h', 'dash_google_task_list',
 ];
 
 let gToken         = null;  // access token (memory only, never persisted)
@@ -3346,53 +3325,6 @@ function hydrateFromDrive() {
     soundBtn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
     soundBtn.classList.toggle('muted', !timerSoundOn);
   }
-}
-
-// =======================================================
-// OBSIDIAN INTEGRATION
-// =======================================================
-
-function saveObsidianCfg() {
-  const vault     = document.getElementById('cfg-obs-vault').value.trim();
-  const notesFile = document.getElementById('cfg-obs-notes').value.trim();
-  const todosFile = document.getElementById('cfg-obs-todos').value.trim();
-  if (!vault) return;
-  localStorage.setItem('dash_obsidian_vault', vault);
-  localStorage.setItem('dash_obsidian_notes_file', notesFile || 'Inbox/Quick Notes');
-  localStorage.setItem('dash_obsidian_todos_file', todosFile || 'Inbox/Tasks');
-  document.getElementById('settings-panel').classList.remove('open');
-  document.getElementById('cfg-btn').classList.remove('active');
-}
-
-function sendNoteToObsidian() {
-  const vault = localStorage.getItem('dash_obsidian_vault');
-  if (!vault) {
-    alert('Set your Obsidian vault name in CFG → OBSIDIAN first.');
-    return;
-  }
-  const text = document.getElementById('note-input').value.trim();
-  if (!text) return;
-  const file    = localStorage.getItem('dash_obsidian_notes_file') || 'Inbox/Quick Notes';
-  const ts      = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-  const content = `\n## ${ts}\n\n${text}\n`;
-  const uri     = `obsidian://new?vault=${encodeURIComponent(vault)}&name=${encodeURIComponent(file)}&content=${encodeURIComponent(content)}&append=true`;
-  window.open(uri, '_blank');
-}
-
-function sendTodosToObsidian() {
-  const vault = localStorage.getItem('dash_obsidian_vault');
-  if (!vault) {
-    alert('Set your Obsidian vault name in CFG → OBSIDIAN first.');
-    return;
-  }
-  const todos = loadTodos();
-  if (!todos.length) return;
-  const file    = localStorage.getItem('dash_obsidian_todos_file') || 'Inbox/Tasks';
-  const ts      = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-  const list    = todos.map(t => `- [${t.done ? 'x' : ' '}] ${t.text}`).join('\n');
-  const content = `\n## Tasks — ${ts}\n\n${list}\n`;
-  const uri     = `obsidian://new?vault=${encodeURIComponent(vault)}&name=${encodeURIComponent(file)}&content=${encodeURIComponent(content)}&append=true`;
-  window.open(uri, '_blank');
 }
 
 // =======================================================
