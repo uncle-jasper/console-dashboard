@@ -542,6 +542,18 @@
     }
     .todo-item:hover .todo-del { opacity: 0.5; }
     .todo-del:hover { opacity: 1 !important; color: var(--fg); }
+    .todo-edit-btn {
+      background: none; border: none; color: var(--fg-muted);
+      cursor: pointer; font-size: 11px; padding: 0 2px; opacity: 0;
+      transition: opacity 0.1s, color 0.1s; line-height: 1; flex-shrink: 0;
+    }
+    .todo-item:hover .todo-edit-btn { opacity: 0.5; }
+    .todo-edit-btn:hover { opacity: 1 !important; color: var(--fg); }
+    .todo-edit-input {
+      flex: 1; background: transparent; border: none;
+      border-bottom: 1px solid var(--fg-dim); color: var(--fg);
+      font-family: inherit; font-size: 12px; outline: none; padding: 0;
+    }
     .todo-move-col {
       display: flex;
       flex-direction: column;
@@ -898,8 +910,19 @@
     [data-crt] body { animation: crt-flicker 14s infinite; }
     /* Phosphor text glow */
     [data-crt] .dashboard {
-      text-shadow: 0 0 6px var(--fg), 0 0 2px var(--fg);
+      text-shadow: 0 0 3px var(--fg);
     }
+    /* Keep tiny UI text sharp — glow would drown it at small sizes */
+    [data-crt] .sp-label,
+    [data-crt] .note-ts,
+    [data-crt] .notes-hint,
+    [data-crt] .todo-group-hdr,
+    [data-crt] .todo-due,
+    [data-crt] .gtask-status,
+    [data-crt] .wx-label,
+    [data-crt] .tbtn,
+    [data-crt] .btn,
+    [data-crt] .panel-hdr { text-shadow: none; }
     /* Power-on burst when CRT is toggled */
     @keyframes crt-poweron {
       0%   { clip-path: inset(49.5% 5% 49.5% 5%); filter: brightness(8); }
@@ -3299,12 +3322,19 @@ function renderTodos() {
     return;
   }
 
-  const now      = new Date();
-  const todayStr = now.toISOString().substring(0, 10);
+  const now = new Date();
+  // Use local dates — toISOString() returns UTC which breaks timezone boundaries
+  const localDate = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const todayStr = localDate(now);
   const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
-  const tomStr   = tomorrow.toISOString().substring(0, 10);
+  const tomStr   = localDate(tomorrow);
   const weekEnd  = new Date(now); weekEnd.setDate(now.getDate() + 7);
-  const weekStr  = weekEnd.toISOString().substring(0, 10);
+  const weekStr  = localDate(weekEnd);
 
   const groups = [
     { key: 'overdue',  label: 'OVERDUE',   cls: 'grp-overdue', tasks: [] },
@@ -3346,11 +3376,12 @@ function renderTodos() {
         const cls = g.key === 'overdue' ? 'overdue' : 'future';
         dueBadge  = `<span class="todo-due ${cls}">${lbl}</span>`;
       }
-      html += `<div class="todo-item${t.done ? ' done' : ''}">
+      html += `<div class="todo-item${t.done ? ' done' : ''}" data-id="${safeId}">
         <input type="checkbox" class="todo-cb" ${t.done ? 'checked' : ''}
                onchange="toggleTodo('${safeId}')">
         <span class="todo-text">${safeText}</span>
         ${dueBadge}
+        <button class="todo-edit-btn" onclick="editTodo('${safeId}')" title="edit">✎</button>
         <button class="todo-del" onclick="deleteTodo('${safeId}')" title="delete">×</button>
       </div>`;
     });
@@ -3398,6 +3429,58 @@ function deleteTodo(encodedId) {
   if (isGConnected()) { gtDeleteTask(id); return; }
   saveTodos(loadTodos().filter(t => t.id !== id));
   renderTodos();
+}
+
+function editTodo(encodedId) {
+  const id   = decodeURIComponent(encodedId);
+  const item = [...document.querySelectorAll('.todo-item')]
+               .find(el => el.dataset.id === encodedId);
+  if (!item) return;
+  const span    = item.querySelector('.todo-text');
+  const current = span.textContent;
+
+  const inp = document.createElement('input');
+  inp.type      = 'text';
+  inp.className = 'todo-edit-input';
+  inp.value     = current;
+  span.replaceWith(inp);
+  inp.focus();
+  inp.select();
+
+  let saved = false;
+  const save = () => {
+    if (saved) return;
+    saved = true;
+    const newText = inp.value.trim();
+    if (newText && newText !== current) {
+      updateTodoText(id, newText);
+    } else {
+      renderTodos();
+    }
+  };
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { saved = true; renderTodos(); }
+  });
+  inp.addEventListener('blur', save);
+}
+
+function updateTodoText(id, newText) {
+  if (isGConnected()) { gtUpdateText(id, newText); return; }
+  const todos = loadTodos();
+  const t = todos.find(t => t.id === id);
+  if (t) { t.text = newText; saveTodos(todos); }
+  renderTodos();
+}
+
+async function gtUpdateText(id, newText) {
+  const listId = localStorage.getItem(GTASKLIST_KEY) || '@default';
+  try {
+    await gtFetch('PATCH', `/lists/${listId}/tasks/${encodeURIComponent(id)}`, { title: newText });
+    const t = gTasksCache.find(t => t.id === id);
+    if (t) t.text = newText;
+    renderTodos();
+  } catch(e) {}
 }
 
 function clearAllTodos() {
