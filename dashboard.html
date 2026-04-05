@@ -682,6 +682,37 @@
     }
     .note-body li { margin: 1px 0; }
     .note-body p { margin: 3px 0; }
+    .note-body del { color: var(--fg-muted); text-decoration: line-through; }
+    .note-body a { color: var(--fg-dim); text-underline-offset: 2px; }
+    .note-body a:hover { color: var(--fg); }
+    .note-body hr { border: none; border-top: 1px solid var(--border); margin: 6px 0; }
+    .note-body pre {
+      background: var(--fg-muted);
+      padding: 6px 8px;
+      margin: 4px 0;
+      overflow-x: auto;
+      font-size: 11px;
+    }
+    .note-body pre code { background: none; padding: 0; border-radius: 0; }
+    .note-cb-view {
+      appearance: none; -webkit-appearance: none;
+      width: 10px; height: 10px;
+      border: 1px solid var(--fg-dim);
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 4px;
+      position: relative;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+    .note-cb-view.checked { border-color: var(--fg-muted); }
+    .note-cb-view.checked::after {
+      content: '\00d7';
+      position: absolute;
+      top: -3px; left: 0px;
+      font-size: 12px;
+      color: var(--fg-muted);
+    }
     .notes-empty { color: var(--fg-muted); font-size: 11px; font-style: italic; }
     .btn {
       background: none;
@@ -1125,7 +1156,7 @@
             <button class="btn" onclick="exportNotes('md')">EXP.MD</button>
             <button class="btn" onclick="exportNotes('txt')">EXP.TXT</button>
           </div>
-          <div class="notes-hint">CTRL+ENTER TO LOG</div>
+          <div class="notes-hint">CTRL+ENTER TO LOG &nbsp;|&nbsp; *italic* &nbsp;**bold** &nbsp;~~strike~~ &nbsp;`code` &nbsp;- list &nbsp;- [ ] task</div>
         </div>
         <div class="notes-view" id="notes-log">
           <div class="notes-empty">// no entries yet</div>
@@ -2432,29 +2463,47 @@ function mdToHtml(raw) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Process line by line for block elements
   const lines = s.split('\n');
-  const out = [];
+  const out   = [];
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
+    // Fenced code block
+    if (/^```/.test(line)) {
+      const lang = line.slice(3).trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) { codeLines.push(lines[i]); i++; }
+      out.push(`<pre><code>${codeLines.join('\n')}</code></pre>`);
+      i++; continue;
+    }
+    // Horizontal rule
+    if (/^---+$/.test(line.trim()))  { out.push('<hr>'); i++; continue; }
     // Headers
-    if (/^### /.test(line))      { out.push(`<h3>${applyInline(line.slice(4))}</h3>`); i++; continue; }
-    if (/^## /.test(line))       { out.push(`<h2>${applyInline(line.slice(3))}</h2>`); i++; continue; }
-    if (/^# /.test(line))        { out.push(`<h1>${applyInline(line.slice(2))}</h1>`); i++; continue; }
+    if (/^### /.test(line))          { out.push(`<h3>${applyInline(line.slice(4))}</h3>`); i++; continue; }
+    if (/^## /.test(line))           { out.push(`<h2>${applyInline(line.slice(3))}</h2>`); i++; continue; }
+    if (/^# /.test(line))            { out.push(`<h1>${applyInline(line.slice(2))}</h1>`); i++; continue; }
     // Blockquote
-    if (/^&gt; /.test(line))     { out.push(`<blockquote>${applyInline(line.slice(5))}</blockquote>`); i++; continue; }
+    if (/^&gt; /.test(line))         { out.push(`<blockquote>${applyInline(line.slice(5))}</blockquote>`); i++; continue; }
+    // Checkbox list items
+    if (/^[-*] \[x\] /i.test(line))  {
+      out.push(`<ul><li><span class="note-cb-view checked"></span>${applyInline(line.slice(6))}</li></ul>`);
+      i++; continue;
+    }
+    if (/^[-*] \[ \] /.test(line))   {
+      out.push(`<ul><li><span class="note-cb-view"></span>${applyInline(line.slice(6))}</li></ul>`);
+      i++; continue;
+    }
     // Unordered list
-    if (/^[-*] /.test(line))     { out.push(`<ul><li>${applyInline(line.slice(2))}</li></ul>`); i++; continue; }
+    if (/^[-*] /.test(line))         { out.push(`<ul><li>${applyInline(line.slice(2))}</li></ul>`); i++; continue; }
     // Ordered list
-    if (/^\d+\. /.test(line))    { out.push(`<ol><li>${applyInline(line.replace(/^\d+\. /,''))}</li></ol>`); i++; continue; }
-    // Blank line = paragraph break
-    if (line.trim() === '')      { out.push('<br>'); i++; continue; }
-    // Normal line
+    if (/^\d+\. /.test(line))        { out.push(`<ol><li>${applyInline(line.replace(/^\d+\. /,''))}</li></ol>`); i++; continue; }
+    // Blank line
+    if (line.trim() === '')          { out.push('<br>'); i++; continue; }
+    // Normal paragraph
     out.push(`<p>${applyInline(line)}</p>`);
     i++;
   }
-  // Merge consecutive ul/ol
   return out.join('')
     .replace(/<\/ul><ul>/g, '')
     .replace(/<\/ol><ol>/g, '');
@@ -2462,11 +2511,13 @@ function mdToHtml(raw) {
 
 function applyInline(s) {
   return s
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
-    .replace(/_([^_]+)_/g, '<em>$1</em>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/`([^`]+)`/g,              '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g,        '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g,            '<em>$1</em>')
+    .replace(/__([^_]+)__/g,            '<strong>$1</strong>')
+    .replace(/_([^_]+)_/g,              '<em>$1</em>')
+    .replace(/~~([^~]+)~~/g,            '<del>$1</del>');
 }
 
 let editingTs = null; // null = new note mode; string = ts of note being edited
@@ -2577,8 +2628,122 @@ function exportNotes(fmt) {
 
 // Keyboard shortcuts for note input
 document.getElementById('note-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); logNote(); }
-  if (e.key === 'Escape' && editingTs) { e.preventDefault(); cancelEdit(); }
+  const ta    = e.target;
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const val   = ta.value;
+
+  // Ctrl/Cmd+Enter → log
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); logNote(); return; }
+  // Escape → cancel edit
+  if (e.key === 'Escape' && editingTs) { e.preventDefault(); cancelEdit(); return; }
+
+  // ── Tab → 2 spaces ────────────────────────────────
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    ta.setRangeText('  ', start, end, 'end');
+    return;
+  }
+
+  // ── Selection wrapping ─────────────────────────────
+  // If text is selected, wrap it with the typed marker
+  if (start !== end) {
+    const sel = val.slice(start, end);
+    const WRAPPERS = { '*': ['*','*'], '`': ['`','`'], '[': ['[',']'], '~': ['~~','~~'] };
+    if (WRAPPERS[e.key]) {
+      e.preventDefault();
+      const [o, c] = WRAPPERS[e.key];
+      ta.setRangeText(o + sel + c, start, end, 'preserve');
+      ta.selectionStart = start + o.length;
+      ta.selectionEnd   = start + o.length + sel.length;
+      return;
+    }
+  }
+
+  // ── Auto-close pairs ──────────────────────────────
+  const PAIRS = { '*': '*', '`': '`', '[': ']', '~': '~' };
+  if (PAIRS[e.key] && start === end) {
+    const next = val[start];
+    // Skip over existing closing char
+    if (next === PAIRS[e.key]) {
+      e.preventDefault(); ta.selectionStart = ta.selectionEnd = start + 1; return;
+    }
+    e.preventDefault();
+    if (e.key === '[') {
+      ta.setRangeText('[]()', start, end, 'preserve');
+      ta.selectionStart = ta.selectionEnd = start + 1;
+    } else {
+      ta.setRangeText(e.key + PAIRS[e.key], start, end, 'preserve');
+      ta.selectionStart = ta.selectionEnd = start + 1;
+    }
+    return;
+  }
+
+  // ── Backspace: delete pair ─────────────────────────
+  if (e.key === 'Backspace' && start === end && start > 0) {
+    const prev = val[start - 1], next = val[start];
+    if ((prev === '*' && next === '*') || (prev === '`' && next === '`') ||
+        (prev === '[' && next === ']') || (prev === '~' && next === '~')) {
+      e.preventDefault();
+      ta.setRangeText('', start - 1, start + 1, 'preserve');
+      ta.selectionStart = ta.selectionEnd = start - 1;
+      return;
+    }
+  }
+
+  // ── Smart Enter: continue lists & blockquotes ─────
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    const line      = val.slice(lineStart, start);  // text from line start to cursor
+
+    // Checkbox: - [ ] or - [x]
+    const cbM = line.match(/^(\s*[-*] \[[ x]\] )/i);
+    if (cbM) {
+      e.preventDefault();
+      if (line.trim() === cbM[1].trim()) {
+        ta.setRangeText('\n', lineStart, start, 'end');
+      } else {
+        ta.setRangeText('\n' + cbM[1].replace(/\[[x]\]/i, '[ ]'), start, start, 'end');
+      }
+      return;
+    }
+
+    // Unordered list: - or *
+    const ulM = line.match(/^(\s*[-*] )/);
+    if (ulM) {
+      e.preventDefault();
+      if (line.trim() === ulM[1].trim()) {
+        ta.setRangeText('\n', lineStart, start, 'end');
+      } else {
+        ta.setRangeText('\n' + ulM[1], start, start, 'end');
+      }
+      return;
+    }
+
+    // Ordered list: 1. 2. etc.
+    const olM = line.match(/^(\s*)(\d+)\. /);
+    if (olM) {
+      e.preventDefault();
+      if (line.trim() === olM[0].trim()) {
+        ta.setRangeText('\n', lineStart, start, 'end');
+      } else {
+        ta.setRangeText('\n' + olM[1] + (parseInt(olM[2]) + 1) + '. ', start, start, 'end');
+      }
+      return;
+    }
+
+    // Blockquote: >
+    const bqM = line.match(/^(\s*>+ ?)/);
+    if (bqM) {
+      e.preventDefault();
+      if (line.trim() === '>') {
+        ta.setRangeText('\n', lineStart, start, 'end');
+      } else {
+        ta.setRangeText('\n' + bqM[1], start, start, 'end');
+      }
+      return;
+    }
+  }
 });
 
 // Persist textarea height across sessions
