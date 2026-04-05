@@ -1030,6 +1030,11 @@
             <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveGoogleCfg()">SET</button>
           </div>
           <div class="sp-row">
+            <span class="sp-label">SECRET</span>
+            <input id="cfg-google-csec" class="sp-input" type="password" placeholder="client secret">
+            <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveGoogleCfg()">SET</button>
+          </div>
+          <div class="sp-row">
             <span class="sp-label">REMIND</span>
             <input id="cfg-remind-time" class="sp-input" type="time" style="width:90px">
             <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveRemindTime()">SET</button>
@@ -2823,7 +2828,8 @@ function toggleSettings(e) {
   btn.classList.toggle('active', open);
   if (open) {
     document.getElementById('cfg-name').value = localStorage.getItem('dash_name') || '';
-    document.getElementById('cfg-google-cid').value  = localStorage.getItem('dash_google_client_id') || '';
+    document.getElementById('cfg-google-cid').value   = localStorage.getItem('dash_google_client_id') || '';
+    document.getElementById('cfg-google-csec').value  = localStorage.getItem(GSECRET_KEY) ? '••••••••' : '';
     document.getElementById('cfg-remind-time').value  = localStorage.getItem('dash_remind_time') || '09:00';
     syncClockFmtBtns();
   }
@@ -3407,6 +3413,7 @@ document.getElementById('todo-input').addEventListener('keydown', e => {
 // =======================================================
 
 const GCLIENT_KEY     = 'dash_google_client_id';
+const GSECRET_KEY     = 'dash_google_client_secret';
 const GTASKLIST_KEY   = 'dash_google_task_list';
 const GT_BASE         = 'https://tasks.googleapis.com/tasks/v1';
 const GD_BASE         = 'https://www.googleapis.com/drive/v3';
@@ -3503,16 +3510,19 @@ async function tryRestoreSession() {
 
 // ── Refresh access token using stored refresh token ───────
 async function doRefresh(refreshToken) {
-  const cid = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
+  const cid  = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
+  const csec = localStorage.getItem(GSECRET_KEY) || '';
   try {
+    const body = new URLSearchParams({
+      client_id:     cid,
+      grant_type:    'refresh_token',
+      refresh_token: refreshToken,
+    });
+    if (csec) body.set('client_secret', csec);
     const resp = await fetch(TOKEN_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     cid,
-        grant_type:    'refresh_token',
-        refresh_token: refreshToken,
-      }),
+      body,
     });
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
@@ -3571,18 +3581,21 @@ async function handleAuthCode(event) {
 
   if (state !== expectedState) { alert('OAuth state mismatch — please try again.'); return; }
 
-  const cid = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
+  const cid  = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
+  const csec = localStorage.getItem(GSECRET_KEY) || '';
   try {
+    const body = new URLSearchParams({
+      client_id:     cid,
+      code,
+      code_verifier: verifier,
+      grant_type:    'authorization_code',
+      redirect_uri:  REDIRECT_URI,
+    });
+    if (csec) body.set('client_secret', csec);
     const resp = await fetch(TOKEN_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     cid,
-        code,
-        code_verifier: verifier,
-        grant_type:    'authorization_code',
-        redirect_uri:  REDIRECT_URI,
-      }),
+      body,
     });
     const data = await resp.json();
     if (data.error) throw new Error(data.error_description || data.error);
@@ -3612,11 +3625,14 @@ function onConnected() {
 }
 
 function saveGoogleCfg() {
-  const cid = document.getElementById('cfg-google-cid').value.trim();
-  if (!cid) return;
-  localStorage.setItem(GCLIENT_KEY, cid);
-  document.getElementById('settings-panel').classList.remove('open');
-  document.getElementById('cfg-btn').classList.remove('active');
+  const cid  = document.getElementById('cfg-google-cid').value.trim();
+  const csec = document.getElementById('cfg-google-csec').value.trim();
+  if (cid)  localStorage.setItem(GCLIENT_KEY,  cid);
+  if (csec) localStorage.setItem(GSECRET_KEY, csec);
+  if (cid || csec) {
+    document.getElementById('settings-panel').classList.remove('open');
+    document.getElementById('cfg-btn').classList.remove('active');
+  }
 }
 
 function initGoogleTasks() {
