@@ -6,6 +6,7 @@
   <title>// DASHBOARD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     /* ===================================================
        THEMES
@@ -527,6 +528,13 @@
       justify-content: flex-end;
       margin-top: 7px;
     }
+    .gtask-status {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: var(--fg-muted);
+      align-self: center;
+    }
+    .gtask-status.live { color: var(--fg-dim); }
 
     /* ===================================================
        NOTES
@@ -929,6 +937,12 @@
             <button class="tbtn" id="qmode-stoic" onclick="setQuoteMode('stoic')">STOIC</button>
             <button class="tbtn" id="qmode-dude"  onclick="setQuoteMode('dude')">DUDE</button>
           </div>
+          <div class="sp-divider">GOOGLE TASKS</div>
+          <div class="sp-row">
+            <span class="sp-label">CLIENT</span>
+            <input id="cfg-google-cid" class="sp-input" type="text" placeholder="….apps.googleusercontent.com">
+            <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveGoogleCfg()">SET</button>
+          </div>
           <div class="sp-divider">OBSIDIAN</div>
           <div class="sp-row">
             <span class="sp-label">VAULT</span>
@@ -1121,7 +1135,10 @@
     <div class="panel">
       <div class="panel-hdr" style="display:flex;justify-content:space-between;align-items:center">
         TO-DO
-        <div style="display:flex;gap:4px;">
+        <div style="display:flex;gap:4px;align-items:center;">
+          <span id="gtask-status" class="gtask-status"></span>
+          <button id="gtask-btn" class="btn" onclick="toggleGoogleConnect()"
+                  style="font-size:9px;padding:2px 8px;letter-spacing:0.1em" title="Connect Google Tasks">GOOG</button>
           <button class="btn" onclick="sendTodosToObsidian()"
                   style="font-size:9px;padding:2px 8px;letter-spacing:0.1em" title="Send tasks to Obsidian vault">→OBS</button>
           <button class="btn" onclick="clearAllTodos()"
@@ -2580,6 +2597,7 @@ function toggleSettings(e) {
   btn.classList.toggle('active', open);
   if (open) {
     document.getElementById('cfg-name').value = localStorage.getItem('dash_name') || '';
+    document.getElementById('cfg-google-cid').value = localStorage.getItem('dash_google_client_id') || '';
     document.getElementById('cfg-obs-vault').value = localStorage.getItem('dash_obsidian_vault') || '';
     document.getElementById('cfg-obs-notes').value = localStorage.getItem('dash_obsidian_notes_file') || '';
     document.getElementById('cfg-obs-todos').value = localStorage.getItem('dash_obsidian_todos_file') || '';
@@ -2978,25 +2996,28 @@ function saveTodos(arr) {
 }
 
 function renderTodos() {
-  const todos = loadTodos();
+  const todos = isGConnected() ? gTasksCache : loadTodos();
   const list  = document.getElementById('todo-list');
   if (!todos.length) {
     list.innerHTML = '<div class="todo-empty">// no tasks yet</div>';
     return;
   }
+  const google = isGConnected();
   list.innerHTML = todos.map((t, i) => {
-    const safeId   = t.id.replace(/'/g, "\\'");
+    const safeId   = encodeURIComponent(t.id);
     const safeText = t.text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const isFirst  = i === 0;
     const isLast   = i === todos.length - 1;
+    const moveCol  = google ? '' : `
+      <div class="todo-move-col">
+        <button class="todo-move" onclick="moveTodo('${safeId}',-1)" title="move up" ${isFirst?'disabled':''}>▲</button>
+        <button class="todo-move" onclick="moveTodo('${safeId}',1)"  title="move down" ${isLast?'disabled':''}>▼</button>
+      </div>`;
     return `<div class="todo-item${t.done ? ' done' : ''}">
       <input type="checkbox" class="todo-cb" ${t.done ? 'checked' : ''}
              onchange="toggleTodo('${safeId}')">
       <span class="todo-text">${safeText}</span>
-      <div class="todo-move-col">
-        <button class="todo-move" onclick="moveTodo('${safeId}', -1)" title="move up" ${isFirst ? 'disabled' : ''}>▲</button>
-        <button class="todo-move" onclick="moveTodo('${safeId}', 1)" title="move down" ${isLast ? 'disabled' : ''}>▼</button>
-      </div>
+      ${moveCol}
       <button class="todo-del" onclick="deleteTodo('${safeId}')" title="delete">×</button>
     </div>`;
   }).join('');
@@ -3006,14 +3027,17 @@ function addTodo() {
   const inp  = document.getElementById('todo-input');
   const text = inp.value.trim();
   if (!text) return;
+  inp.value = '';
+  if (isGConnected()) { gtAddTask(text); return; }
   const todos = loadTodos();
   todos.push({ id: Date.now().toString(), text, done: false });
   saveTodos(todos);
-  inp.value = '';
   renderTodos();
 }
 
-function toggleTodo(id) {
+function toggleTodo(encodedId) {
+  const id = decodeURIComponent(encodedId);
+  if (isGConnected()) { gtToggleTask(id); return; }
   const todos = loadTodos();
   const t     = todos.find(t => t.id === id);
   if (t) t.done = !t.done;
@@ -3021,22 +3045,29 @@ function toggleTodo(id) {
   renderTodos();
 }
 
-function moveTodo(id, dir) {
+function moveTodo(encodedId, dir) {
+  const id    = decodeURIComponent(encodedId);
   const todos = loadTodos();
-  const i = todos.findIndex(t => t.id === id);
-  const j = i + dir;
+  const i     = todos.findIndex(t => t.id === id);
+  const j     = i + dir;
   if (j < 0 || j >= todos.length) return;
   [todos[i], todos[j]] = [todos[j], todos[i]];
   saveTodos(todos);
   renderTodos();
 }
 
-function deleteTodo(id) {
+function deleteTodo(encodedId) {
+  const id = decodeURIComponent(encodedId);
+  if (isGConnected()) { gtDeleteTask(id); return; }
   saveTodos(loadTodos().filter(t => t.id !== id));
   renderTodos();
 }
 
 function clearAllTodos() {
+  if (isGConnected()) {
+    Promise.all(gTasksCache.map(t => gtDeleteTask(t.id)));
+    return;
+  }
   saveTodos([]);
   renderTodos();
 }
@@ -3045,6 +3076,159 @@ function clearAllTodos() {
 document.getElementById('todo-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); addTodo(); }
 });
+
+// =======================================================
+// GOOGLE TASKS INTEGRATION
+// =======================================================
+
+const GCLIENT_KEY   = 'dash_google_client_id';
+const GTASKLIST_KEY = 'dash_google_task_list';
+const GT_BASE       = 'https://tasks.googleapis.com/tasks/v1';
+
+let gToken       = null;  // access token (memory only)
+let gTokenExpiry = 0;
+let gTaskClient  = null;  // GIS token client instance
+let gTasksCache  = [];    // in-memory task list when connected
+let gSyncTimer   = null;
+
+function isGConnected() {
+  return !!(gToken && Date.now() < gTokenExpiry);
+}
+
+function saveGoogleCfg() {
+  const cid = document.getElementById('cfg-google-cid').value.trim();
+  if (!cid) return;
+  localStorage.setItem(GCLIENT_KEY, cid);
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('cfg-btn').classList.remove('active');
+}
+
+function initGoogleTasks() {
+  if (!window.google?.accounts?.oauth2) {
+    setTimeout(initGoogleTasks, 600);
+    return;
+  }
+  const cid = localStorage.getItem(GCLIENT_KEY);
+  if (!cid) return;
+  gTaskClient = google.accounts.oauth2.initTokenClient({
+    client_id: cid,
+    scope: 'https://www.googleapis.com/auth/tasks',
+    callback: handleGToken,
+  });
+  // Attempt silent re-auth (no popup if session already active)
+  gTaskClient.requestAccessToken({ prompt: '' });
+}
+
+function handleGToken(resp) {
+  if (resp.error) { setGStatus('offline'); return; }
+  gToken       = resp.access_token;
+  gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
+  loadGTasks();
+  if (gSyncTimer) clearInterval(gSyncTimer);
+  gSyncTimer = setInterval(loadGTasks, 60000);
+}
+
+function toggleGoogleConnect() {
+  if (isGConnected()) {
+    disconnectGoogle();
+  } else {
+    if (!gTaskClient) {
+      const cid = localStorage.getItem(GCLIENT_KEY);
+      if (!cid) { alert('Add your Google Client ID in CFG → GOOGLE TASKS first.'); return; }
+      if (!window.google?.accounts?.oauth2) { alert('Google Identity Services not ready yet — try again in a moment.'); return; }
+      initGoogleTasks();
+      return;
+    }
+    gTaskClient.requestAccessToken({ prompt: 'select_account' });
+  }
+}
+
+function disconnectGoogle() {
+  if (gToken) google.accounts.oauth2.revoke(gToken, () => {});
+  gToken = null; gTokenExpiry = 0; gTasksCache = [];
+  if (gSyncTimer) { clearInterval(gSyncTimer); gSyncTimer = null; }
+  setGStatus('offline');
+  renderTodos();
+}
+
+function setGStatus(state) {
+  const el  = document.getElementById('gtask-status');
+  const btn = document.getElementById('gtask-btn');
+  if (!el || !btn) return;
+  if (state === 'connected') {
+    el.textContent = '● LIVE'; el.className = 'gtask-status live';
+    btn.textContent = 'DISC';
+  } else if (state === 'syncing') {
+    el.textContent = '↻'; el.className = 'gtask-status';
+    btn.textContent = 'DISC';
+  } else {
+    el.textContent = ''; el.className = 'gtask-status';
+    btn.textContent = 'GOOG';
+  }
+}
+
+async function gtFetch(method, path, body) {
+  const opts = {
+    method,
+    headers: { Authorization: `Bearer ${gToken}`, 'Content-Type': 'application/json' },
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(`${GT_BASE}${path}`, opts);
+  if (r.status === 401) { gToken = null; setGStatus('offline'); throw new Error('GT 401'); }
+  if (!r.ok) throw new Error(`GT ${r.status}`);
+  return r.status === 204 ? null : r.json();
+}
+
+async function loadGTasks() {
+  if (!isGConnected()) return;
+  setGStatus('syncing');
+  try {
+    const listId = localStorage.getItem(GTASKLIST_KEY) || '@default';
+    const data   = await gtFetch('GET',
+      `/lists/${listId}/tasks?showCompleted=true&showHidden=false&maxResults=100`);
+    gTasksCache = (data.items || []).map(t => ({
+      id:   t.id,
+      text: t.title || '(no title)',
+      done: t.status === 'completed',
+    }));
+    setGStatus('connected');
+    renderTodos();
+  } catch(e) {
+    setGStatus('offline');
+  }
+}
+
+async function gtAddTask(text) {
+  const listId = localStorage.getItem(GTASKLIST_KEY) || '@default';
+  try {
+    const task = await gtFetch('POST', `/lists/${listId}/tasks`, { title: text });
+    gTasksCache.push({ id: task.id, text: task.title, done: false });
+    renderTodos();
+  } catch(e) {}
+}
+
+async function gtToggleTask(id) {
+  const t = gTasksCache.find(t => t.id === id);
+  if (!t) return;
+  const listId  = localStorage.getItem(GTASKLIST_KEY) || '@default';
+  const newDone = !t.done;
+  const body    = { status: newDone ? 'completed' : 'needsAction' };
+  if (newDone) body.completed = new Date().toISOString();
+  try {
+    await gtFetch('PATCH', `/lists/${listId}/tasks/${encodeURIComponent(id)}`, body);
+    t.done = newDone;
+    renderTodos();
+  } catch(e) {}
+}
+
+async function gtDeleteTask(id) {
+  const listId = localStorage.getItem(GTASKLIST_KEY) || '@default';
+  try {
+    await gtFetch('DELETE', `/lists/${listId}/tasks/${encodeURIComponent(id)}`);
+    gTasksCache = gTasksCache.filter(t => t.id !== id);
+    renderTodos();
+  } catch(e) {}
+}
 
 // =======================================================
 // OBSIDIAN INTEGRATION
@@ -3251,6 +3435,7 @@ function updateRowButtons(container) {
   soundBtn.classList.toggle('muted', !timerSoundOn);
   // Todo
   renderTodos();
+  initGoogleTasks();
   // Layout controls
   initLayoutControls();
 })();
