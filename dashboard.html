@@ -3020,12 +3020,20 @@ function saveTodos(arr) {
 }
 
 function renderTodos() {
-  const todos = isGConnected() ? gTasksCache : loadTodos();
-  const list  = document.getElementById('todo-list');
-  if (!todos.length) {
+  const raw  = isGConnected() ? gTasksCache : loadTodos();
+  const list = document.getElementById('todo-list');
+  if (!raw.length) {
     list.innerHTML = '<div class="todo-empty">// no tasks yet</div>';
     return;
   }
+  // Sort: undone with due date first (earliest → latest), then undone no-date, then done
+  const FAR = '9999-99-99';
+  const todos = [...raw].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    const da = a.due || FAR;
+    const db = b.due || FAR;
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
   const google = isGConnected();
   const todayStr = new Date().toISOString().substring(0, 10);
   list.innerHTML = todos.map((t, i) => {
@@ -3033,11 +3041,6 @@ function renderTodos() {
     const safeText = t.text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const isFirst  = i === 0;
     const isLast   = i === todos.length - 1;
-    const moveCol  = google ? '' : `
-      <div class="todo-move-col">
-        <button class="todo-move" onclick="moveTodo('${safeId}',-1)" title="move up" ${isFirst?'disabled':''}>▲</button>
-        <button class="todo-move" onclick="moveTodo('${safeId}',1)"  title="move down" ${isLast?'disabled':''}>▼</button>
-      </div>`;
     let dueBadge = '';
     if (t.due) {
       const cls  = t.due < todayStr ? 'overdue' : t.due === todayStr ? 'today' : 'future';
@@ -3051,7 +3054,6 @@ function renderTodos() {
              onchange="toggleTodo('${safeId}')">
       <span class="todo-text">${safeText}</span>
       ${dueBadge}
-      ${moveCol}
       <button class="todo-del" onclick="deleteTodo('${safeId}')" title="delete">×</button>
     </div>`;
   }).join('');
