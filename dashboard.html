@@ -838,6 +838,79 @@
     }
 
     /* ===================================================
+       CRT MODE
+    =================================================== */
+    .crt-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9000;
+    }
+    [data-crt] .crt-overlay { display: block; }
+
+    /* Scanlines */
+    .crt-overlay::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 2px,
+        rgba(0,0,0,0.2) 2px,
+        rgba(0,0,0,0.2) 4px
+      );
+    }
+    /* Vignette */
+    .crt-overlay::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 50%,
+        transparent 50%, rgba(0,0,0,0.65) 100%);
+    }
+    /* Moving phosphor scan beam */
+    @keyframes crt-beam {
+      from { top: -15%; }
+      to   { top: 115%; }
+    }
+    .crt-beam {
+      position: absolute;
+      left: 0; right: 0;
+      height: 120px;
+      background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(255,255,255,0.018) 35%,
+        rgba(255,255,255,0.032) 50%,
+        rgba(255,255,255,0.018) 65%,
+        transparent 100%
+      );
+      animation: crt-beam 9s linear infinite;
+      pointer-events: none;
+    }
+    /* Subtle random flicker */
+    @keyframes crt-flicker {
+      0%,18%,20%,22%,52%,54%,64%,100% { opacity: 1; }
+      19%,21%,53%,63%                  { opacity: 0.96; }
+    }
+    [data-crt] body { animation: crt-flicker 14s infinite; }
+    /* Phosphor text glow */
+    [data-crt] .dashboard {
+      text-shadow: 0 0 6px var(--fg), 0 0 2px var(--fg);
+    }
+    /* Power-on burst when CRT is toggled */
+    @keyframes crt-poweron {
+      0%   { clip-path: inset(49.5% 5% 49.5% 5%); filter: brightness(8); }
+      20%  { clip-path: inset(15%   0% 15%   0%); filter: brightness(3); }
+      55%  { clip-path: inset(0%    0% 0%    0%); filter: brightness(1.6); }
+      100% { clip-path: inset(0%    0% 0%    0%); filter: brightness(1); }
+    }
+    [data-crt] .dashboard.crt-on { animation: crt-poweron 0.55s ease-out forwards; }
+    .tbtn.crt-active { border-color: var(--fg); color: var(--fg); }
+
+    /* ===================================================
        SETTINGS PANEL
     =================================================== */
     .settings-wrap { position: relative; }
@@ -988,6 +1061,7 @@
         <button class="tbtn" data-theme="amber"  onclick="setTheme('amber')">AMB</button>
         <button class="tbtn" data-theme="white"  onclick="setTheme('white')">WHT</button>
         <button class="tbtn" data-theme="light"  onclick="setTheme('light')">LGT</button>
+        <button class="tbtn" id="crt-btn" onclick="toggleCRT()">CRT</button>
       </div>
       <div class="settings-wrap">
         <button class="tbtn" id="cfg-btn" onclick="toggleSettings(event)">CFG</button>
@@ -2773,6 +2847,28 @@ function setTheme(t) {
 }
 
 // =======================================================
+// CRT MODE
+// =======================================================
+
+function toggleCRT() {
+  const on = !document.documentElement.hasAttribute('data-crt');
+  if (on) {
+    document.documentElement.setAttribute('data-crt', '');
+    localStorage.setItem('dash_crt', '1');
+    // Power-on animation
+    const dash = document.querySelector('.dashboard');
+    dash.classList.remove('crt-on');
+    void dash.offsetWidth; // force reflow
+    dash.classList.add('crt-on');
+    dash.addEventListener('animationend', () => dash.classList.remove('crt-on'), { once: true });
+  } else {
+    document.documentElement.removeAttribute('data-crt');
+    localStorage.removeItem('dash_crt');
+  }
+  document.getElementById('crt-btn').classList.toggle('crt-active', on);
+}
+
+// =======================================================
 // GREETING
 // =======================================================
 
@@ -3780,6 +3876,10 @@ function updateRowButtons(container) {
   };
 
   setTheme(localStorage.getItem('dash_theme') || 'green');
+  if (localStorage.getItem('dash_crt')) {
+    document.documentElement.setAttribute('data-crt', '');
+    document.getElementById('crt-btn').classList.add('crt-active');
+  }
   syncClockFmtBtns();
   syncWxUnitBtns();
   syncQuoteModeBtns();
@@ -3817,5 +3917,11 @@ function updateRowButtons(container) {
 })();
 
 </script>
+
+<!-- CRT overlay: scanlines + vignette live here; beam is a child -->
+<div class="crt-overlay" id="crt-overlay">
+  <div class="crt-beam"></div>
+</div>
+
 </body>
 </html>
