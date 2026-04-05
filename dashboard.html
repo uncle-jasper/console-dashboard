@@ -430,7 +430,7 @@
       display: flex;
       gap: 6px;
       align-items: center;
-      margin-bottom: 7px;
+      margin-bottom: 5px;
     }
     #todo-input {
       flex: 1;
@@ -444,6 +444,39 @@
     }
     #todo-input:focus { border-color: var(--fg-dim); }
     #todo-input::placeholder { color: var(--fg-muted); font-style: italic; }
+    .todo-date-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 7px;
+    }
+    .todo-date-label {
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      color: var(--fg-dim);
+      min-width: 26px;
+    }
+    .todo-date-input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 11px;
+      padding: 2px 5px;
+      outline: none;
+      color-scheme: dark;
+    }
+    .todo-date-input:focus { border-color: var(--fg-dim); }
+    .todo-due {
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      padding: 1px 4px;
+      border: 1px solid;
+      flex-shrink: 0;
+    }
+    .todo-due.overdue { color: var(--accent); border-color: var(--accent); }
+    .todo-due.today   { color: var(--fg);     border-color: var(--fg); }
+    .todo-due.future  { color: var(--fg-muted); border-color: var(--fg-muted); }
     .todo-list { max-height: 180px; overflow-y: auto; }
     .todo-item {
       display: flex;
@@ -943,6 +976,11 @@
             <input id="cfg-google-cid" class="sp-input" type="text" placeholder="….apps.googleusercontent.com">
             <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveGoogleCfg()">SET</button>
           </div>
+          <div class="sp-row">
+            <span class="sp-label">REMIND</span>
+            <input id="cfg-remind-time" class="sp-input" type="time" style="width:90px">
+            <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveRemindTime()">SET</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1076,7 +1114,7 @@
             <button class="btn" onclick="exportNotes('md')">EXP.MD</button>
             <button class="btn" onclick="exportNotes('txt')">EXP.TXT</button>
           </div>
-          <div class="notes-hint">CTRL+ENTER TO LOG &nbsp;|&nbsp; 21 DAY RETENTION</div>
+          <div class="notes-hint">CTRL+ENTER TO LOG</div>
         </div>
         <div class="notes-view" id="notes-log">
           <div class="notes-empty">// no entries yet</div>
@@ -1131,6 +1169,13 @@
       <div class="todo-input-row">
         <input type="text" id="todo-input" placeholder="// add task...">
         <button class="btn btn-primary" onclick="addTodo()">ADD</button>
+      </div>
+      <div class="todo-date-row">
+        <span class="todo-date-label">DUE</span>
+        <input type="date" id="todo-date" class="todo-date-input" title="Optional due date">
+        <span style="font-size:9px;color:var(--fg-muted);letter-spacing:0.1em">NOTIFY AT</span>
+        <input type="time" id="todo-remind-time-input" class="todo-date-input"
+               style="width:80px" title="Time to send reminder on due date">
       </div>
       <div class="todo-list" id="todo-list">
         <div class="todo-empty">// no tasks yet</div>
@@ -2358,8 +2403,7 @@ function renderQuote() {
 // NOTES
 // =======================================================
 
-const NOTES_KEY    = 'dashboard_notes_v1';
-const KEEP_MS      = 21 * 24 * 60 * 60 * 1000; // 21 days
+const NOTES_KEY = 'dashboard_notes_v1';
 
 function loadNotes() {
   try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); }
@@ -2487,8 +2531,7 @@ function logNote() {
     cancelEdit();
   } else {
     // New note
-    const cutoff = Date.now() - KEEP_MS;
-    const notes  = loadNotes().filter(n => new Date(n.ts).getTime() > cutoff);
+    const notes = loadNotes();
     notes.push({ ts: new Date().toISOString(), text });
     saveNotes(notes);
     inp.value = '';
@@ -2580,7 +2623,8 @@ function toggleSettings(e) {
   btn.classList.toggle('active', open);
   if (open) {
     document.getElementById('cfg-name').value = localStorage.getItem('dash_name') || '';
-    document.getElementById('cfg-google-cid').value = localStorage.getItem('dash_google_client_id') || '';
+    document.getElementById('cfg-google-cid').value  = localStorage.getItem('dash_google_client_id') || '';
+    document.getElementById('cfg-remind-time').value  = localStorage.getItem('dash_remind_time') || '09:00';
     syncClockFmtBtns();
   }
 }
@@ -2983,6 +3027,7 @@ function renderTodos() {
     return;
   }
   const google = isGConnected();
+  const todayStr = new Date().toISOString().substring(0, 10);
   list.innerHTML = todos.map((t, i) => {
     const safeId   = encodeURIComponent(t.id);
     const safeText = t.text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2993,10 +3038,19 @@ function renderTodos() {
         <button class="todo-move" onclick="moveTodo('${safeId}',-1)" title="move up" ${isFirst?'disabled':''}>▲</button>
         <button class="todo-move" onclick="moveTodo('${safeId}',1)"  title="move down" ${isLast?'disabled':''}>▼</button>
       </div>`;
+    let dueBadge = '';
+    if (t.due) {
+      const cls  = t.due < todayStr ? 'overdue' : t.due === todayStr ? 'today' : 'future';
+      const d    = new Date(t.due + 'T12:00:00');
+      const lbl  = t.due === todayStr ? 'TODAY'
+                 : d.toLocaleDateString('en-US', { month:'short', day:'numeric' }).toUpperCase();
+      dueBadge = `<span class="todo-due ${cls}">${lbl}</span>`;
+    }
     return `<div class="todo-item${t.done ? ' done' : ''}">
       <input type="checkbox" class="todo-cb" ${t.done ? 'checked' : ''}
              onchange="toggleTodo('${safeId}')">
       <span class="todo-text">${safeText}</span>
+      ${dueBadge}
       ${moveCol}
       <button class="todo-del" onclick="deleteTodo('${safeId}')" title="delete">×</button>
     </div>`;
@@ -3007,10 +3061,12 @@ function addTodo() {
   const inp  = document.getElementById('todo-input');
   const text = inp.value.trim();
   if (!text) return;
-  inp.value = '';
-  if (isGConnected()) { gtAddTask(text); return; }
+  const due  = document.getElementById('todo-date').value || null;
+  inp.value  = '';
+  document.getElementById('todo-date').value = '';
+  if (isGConnected()) { gtAddTask(text, due); return; }
   const todos = loadTodos();
-  todos.push({ id: Date.now().toString(), text, done: false });
+  todos.push({ id: Date.now().toString(), text, done: false, due });
   saveTodos(todos);
   renderTodos();
 }
@@ -3074,7 +3130,7 @@ const SYNC_KEYS = [
   'dash_theme', 'dash_name', 'dash_clock_fmt', 'dash_wx_unit',
   'dash_quote_mode', 'dash_timer_sound', 'dashboard_notes_v1',
   'dash_zones', 'dash_todos_v1', 'dash_row_order', 'dash_panel_swaps',
-  'dash_note_h', 'dash_google_task_list',
+  'dash_note_h', 'dash_google_task_list', 'dash_remind_time',
 ];
 
 let gToken         = null;  // access token (memory only, never persisted)
@@ -3119,6 +3175,7 @@ function handleGToken(resp) {
   if (resp.error) { setGStatus('offline'); return; }
   gToken       = resp.access_token;
   gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
+  requestNotifPermission();
   loadGTasks();
   driveLoad();
   if (gSyncTimer) clearInterval(gSyncTimer);
@@ -3191,17 +3248,21 @@ async function loadGTasks() {
       id:   t.id,
       text: t.title || '(no title)',
       done: t.status === 'completed',
+      due:  t.due ? t.due.substring(0, 10) : null,  // YYYY-MM-DD
     }));
     setGStatus('connected');
     renderTodos();
   } catch(e) { setGStatus('offline'); }
 }
 
-async function gtAddTask(text) {
+async function gtAddTask(text, due) {
   const listId = localStorage.getItem(GTASKLIST_KEY) || '@default';
+  const body   = { title: text };
+  if (due) body.due = due + 'T00:00:00.000Z';
   try {
-    const task = await gtFetch('POST', `/lists/${listId}/tasks`, { title: text });
-    gTasksCache.push({ id: task.id, text: task.title, done: false });
+    const task = await gtFetch('POST', `/lists/${listId}/tasks`, body);
+    gTasksCache.push({ id: task.id, text: task.title, done: false,
+                       due: due || null });
     renderTodos();
   } catch(e) {}
 }
@@ -3227,6 +3288,49 @@ async function gtDeleteTask(id) {
     gTasksCache = gTasksCache.filter(t => t.id !== id);
     renderTodos();
   } catch(e) {}
+}
+
+// ── Reminder notifications ──────────────────────────────
+
+function saveRemindTime() {
+  const val = document.getElementById('cfg-remind-time').value;
+  if (!val) return;
+  localStorage.setItem('dash_remind_time', val);
+  document.getElementById('todo-remind-time-input').value = val;
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('cfg-btn').classList.remove('active');
+}
+
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+const _notifiedToday = new Set(); // taskIds notified this session-day
+
+function checkTaskReminders() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const remindTime = localStorage.getItem('dash_remind_time') || '09:00';
+  const now        = new Date();
+  const todayStr   = now.toISOString().substring(0, 10);
+  const [rh, rm]   = remindTime.split(':').map(Number);
+  if (now.getHours() < rh || (now.getHours() === rh && now.getMinutes() < rm)) return;
+
+  const todos = isGConnected() ? gTasksCache : loadTodos();
+  todos.forEach(t => {
+    if (t.done || !t.due || t.due > todayStr) return;
+    const key = `${t.id}:${todayStr}`;
+    if (_notifiedToday.has(key)) return;
+    _notifiedToday.add(key);
+    const label = t.due < todayStr ? 'OVERDUE' : 'DUE TODAY';
+    new Notification(`${label}: ${t.text}`, {
+      body: t.due < todayStr
+        ? `Was due ${new Date(t.due + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
+        : 'Due today — check your dashboard',
+      tag:  key,
+    });
+  });
 }
 
 // ── Google Drive appdata sync ───────────────────────────
@@ -3492,7 +3596,15 @@ function updateRowButtons(container) {
   soundBtn.classList.toggle('muted', !timerSoundOn);
   // Todo
   renderTodos();
+  // Pre-fill the inline reminder time input from saved preference
+  document.getElementById('todo-remind-time-input').value =
+    localStorage.getItem('dash_remind_time') || '09:00';
+  document.getElementById('todo-remind-time-input').addEventListener('change', e => {
+    localStorage.setItem('dash_remind_time', e.target.value);
+  });
   initGoogleTasks();
+  setInterval(checkTaskReminders, 60000);
+  checkTaskReminders();
   // Layout controls
   initLayoutControls();
   // Flush any pending Drive save before tab closes
