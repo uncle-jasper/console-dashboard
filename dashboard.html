@@ -3078,18 +3078,33 @@ document.getElementById('todo-input').addEventListener('keydown', e => {
 });
 
 // =======================================================
-// GOOGLE TASKS INTEGRATION
+// GOOGLE TASKS + DRIVE SYNC
 // =======================================================
 
-const GCLIENT_KEY   = 'dash_google_client_id';
-const GTASKLIST_KEY = 'dash_google_task_list';
-const GT_BASE       = 'https://tasks.googleapis.com/tasks/v1';
+const GCLIENT_KEY     = 'dash_google_client_id';
+const GTASKLIST_KEY   = 'dash_google_task_list';
+const GT_BASE         = 'https://tasks.googleapis.com/tasks/v1';
+const GD_BASE         = 'https://www.googleapis.com/drive/v3';
+const GD_UPLOAD_BASE  = 'https://www.googleapis.com/upload/drive/v3';
+const GD_FILENAME     = 'dashboard-state.json';
+const DEFAULT_CID     = '311035608024-6rfmkpaq2a529aoreik0nkg0tvq2qchm.apps.googleusercontent.com';
 
-let gToken       = null;  // access token (memory only)
-let gTokenExpiry = 0;
-let gTaskClient  = null;  // GIS token client instance
-let gTasksCache  = [];    // in-memory task list when connected
-let gSyncTimer   = null;
+// Keys persisted to Google Drive for cross-device sync
+const SYNC_KEYS = [
+  'dash_theme', 'dash_name', 'dash_clock_fmt', 'dash_wx_unit',
+  'dash_quote_mode', 'dash_timer_sound', 'dashboard_notes_v1',
+  'dash_zones', 'dash_todos_v1', 'dash_row_order', 'dash_panel_swaps',
+  'dash_note_h', 'dash_obsidian_vault', 'dash_obsidian_notes_file',
+  'dash_obsidian_todos_file', 'dash_google_task_list',
+];
+
+let gToken         = null;  // access token (memory only, never persisted)
+let gTokenExpiry   = 0;
+let gTaskClient    = null;
+let gTasksCache    = [];
+let gSyncTimer     = null;
+let gDriveFileId   = null;
+let gDriveSaveTimer = null;
 
 function isGConnected() {
   return !!(gToken && Date.now() < gTokenExpiry);
@@ -3108,14 +3123,16 @@ function initGoogleTasks() {
     setTimeout(initGoogleTasks, 600);
     return;
   }
-  const cid = localStorage.getItem(GCLIENT_KEY);
-  if (!cid) return;
+  const cid = localStorage.getItem(GCLIENT_KEY) || DEFAULT_CID;
   gTaskClient = google.accounts.oauth2.initTokenClient({
     client_id: cid,
-    scope: 'https://www.googleapis.com/auth/tasks',
+    scope: [
+      'https://www.googleapis.com/auth/tasks',
+      'https://www.googleapis.com/auth/drive.appdata',
+    ].join(' '),
     callback: handleGToken,
   });
-  // Attempt silent re-auth (no popup if session already active)
+  // Attempt silent re-auth — no popup if Google session is still active
   gTaskClient.requestAccessToken({ prompt: '' });
 }
 
@@ -3124,6 +3141,7 @@ function handleGToken(resp) {
   gToken       = resp.access_token;
   gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
   loadGTasks();
+  driveLoad();
   if (gSyncTimer) clearInterval(gSyncTimer);
   gSyncTimer = setInterval(loadGTasks, 60000);
 }
@@ -3133,9 +3151,10 @@ function toggleGoogleConnect() {
     disconnectGoogle();
   } else {
     if (!gTaskClient) {
-      const cid = localStorage.getItem(GCLIENT_KEY);
-      if (!cid) { alert('Add your Google Client ID in CFG → GOOGLE TASKS first.'); return; }
-      if (!window.google?.accounts?.oauth2) { alert('Google Identity Services not ready yet — try again in a moment.'); return; }
+      if (!window.google?.accounts?.oauth2) {
+        alert('Google Identity Services not ready yet — try again in a moment.');
+        return;
+      }
       initGoogleTasks();
       return;
     }
@@ -3145,8 +3164,9 @@ function toggleGoogleConnect() {
 
 function disconnectGoogle() {
   if (gToken) google.accounts.oauth2.revoke(gToken, () => {});
-  gToken = null; gTokenExpiry = 0; gTasksCache = [];
-  if (gSyncTimer) { clearInterval(gSyncTimer); gSyncTimer = null; }
+  gToken = null; gTokenExpiry = 0; gTasksCache = []; gDriveFileId = null;
+  if (gSyncTimer)     { clearInterval(gSyncTimer);    gSyncTimer = null; }
+  if (gDriveSaveTimer){ clearTimeout(gDriveSaveTimer); gDriveSaveTimer = null; }
   setGStatus('offline');
   renderTodos();
 }
@@ -3166,6 +3186,8 @@ function setGStatus(state) {
     btn.textContent = 'GOOG';
   }
 }
+
+// ── Google Tasks API ────────────────────────────────────
 
 async function gtFetch(method, path, body) {
   const opts = {
@@ -3193,9 +3215,7 @@ async function loadGTasks() {
     }));
     setGStatus('connected');
     renderTodos();
-  } catch(e) {
-    setGStatus('offline');
-  }
+  } catch(e) { setGStatus('offline'); }
 }
 
 async function gtAddTask(text) {
@@ -3228,6 +3248,104 @@ async function gtDeleteTask(id) {
     gTasksCache = gTasksCache.filter(t => t.id !== id);
     renderTodos();
   } catch(e) {}
+}
+
+// ── Google Drive appdata sync ───────────────────────────
+
+async function driveLoad() {
+  if (!isGConnected()) return;
+  try {
+    const list = await fetch(
+      `${GD_BASE}/files?spaces=appDataFolder&q=name%3D%27${GD_FILENAME}%27&fields=files(id)`,
+      { headers: { Authorization: `Bearer ${gToken}` } }
+    ).then(r => r.json());
+
+    if (!list.files?.length) {
+      // First time on this account — push current local state up
+      await driveSave();
+      return;
+    }
+    gDriveFileId = list.files[0].id;
+    const r    = await fetch(`${GD_BASE}/files/${gDriveFileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${gToken}` } });
+    const data = await r.json();
+    if (!data.state) return;
+
+    // Hydrate localStorage from Drive then re-render the whole UI
+    Object.entries(data.state).forEach(([k, v]) => {
+      if (v != null) localStorage.setItem(k, v);
+    });
+    hydrateFromDrive();
+  } catch(e) { console.warn('Drive load:', e); }
+}
+
+async function driveSave() {
+  if (!isGConnected()) return;
+  const state = {};
+  SYNC_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v != null) state[k] = v; });
+  const payload = JSON.stringify({ v: 1, updated: new Date().toISOString(), state });
+
+  try {
+    if (gDriveFileId) {
+      await fetch(`${GD_UPLOAD_BASE}/files/${gDriveFileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${gToken}`, 'Content-Type': 'application/json' },
+        body: payload,
+      });
+    } else {
+      const boundary = 'dashsync';
+      const body = [
+        `--${boundary}`,
+        'Content-Type: application/json; charset=UTF-8', '',
+        JSON.stringify({ name: GD_FILENAME, parents: ['appDataFolder'] }),
+        `--${boundary}`,
+        'Content-Type: application/json', '',
+        payload,
+        `--${boundary}--`,
+      ].join('\r\n');
+      const res = await fetch(`${GD_UPLOAD_BASE}/files?uploadType=multipart`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${gToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body,
+      });
+      const created = await res.json();
+      gDriveFileId = created.id;
+    }
+  } catch(e) { console.warn('Drive save:', e); }
+}
+
+// Debounced — called automatically whenever localStorage changes for a synced key
+function scheduleDriveSync() {
+  if (!isGConnected()) return;
+  if (gDriveSaveTimer) clearTimeout(gDriveSaveTimer);
+  gDriveSaveTimer = setTimeout(driveSave, 2000);
+}
+
+// Re-render the whole dashboard after Drive hydrates localStorage
+function hydrateFromDrive() {
+  // Update module-level vars initialised from localStorage at startup
+  wxUnit       = localStorage.getItem('dash_wx_unit') || 'F';
+  quoteMode    = localStorage.getItem('dash_quote_mode') || 'stoic';
+  timerSoundOn = localStorage.getItem('dash_timer_sound') !== 'off';
+
+  setTheme(localStorage.getItem('dash_theme') || 'green');
+  syncClockFmtBtns();
+  syncWxUnitBtns();
+  syncQuoteModeBtns();
+  renderGreeting();
+  renderZones();
+  renderNotes();
+  renderTodos();
+  renderWord();
+  renderQuote();
+  const soundBtn = document.getElementById('timer-sound-btn');
+  if (soundBtn) {
+    soundBtn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
+    soundBtn.classList.toggle('muted', !timerSoundOn);
+  }
 }
 
 // =======================================================
@@ -3413,6 +3531,13 @@ function updateRowButtons(container) {
 // =======================================================
 
 (function() {
+  // Intercept localStorage writes so any state change triggers a Drive sync
+  const _lsSet = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(key, value) {
+    _lsSet(key, value);
+    if (SYNC_KEYS.includes(key)) scheduleDriveSync();
+  };
+
   setTheme(localStorage.getItem('dash_theme') || 'green');
   syncClockFmtBtns();
   syncWxUnitBtns();
@@ -3438,6 +3563,8 @@ function updateRowButtons(container) {
   initGoogleTasks();
   // Layout controls
   initLayoutControls();
+  // Flush any pending Drive save before tab closes
+  window.addEventListener('beforeunload', () => { if (isGConnected()) driveSave(); });
 })();
 
 </script>
