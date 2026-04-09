@@ -1299,8 +1299,6 @@
           <div class="notes-compose-btns">
             <button class="btn btn-primary" id="note-submit-btn" onclick="logNote()">LOG</button>
             <button class="btn" id="note-cancel-btn" onclick="cancelEdit()" style="display:none">CANCEL</button>
-            <button class="btn" onclick="exportNotes('md')">EXP.MD</button>
-            <button class="btn" onclick="exportNotes('txt')">EXP.TXT</button>
           </div>
           <div class="notes-hint">CTRL+ENTER TO LOG &nbsp;|&nbsp; *italic* &nbsp;**bold** &nbsp;~~strike~~ &nbsp;`code` &nbsp;- list &nbsp;- [ ] task</div>
         </div>
@@ -2719,6 +2717,8 @@ function renderNotes() {
       <div class="note-ts" onclick="toggleNoteExpanded('${safeTs}')">
         <span><span class="note-chevron">▶</span>${ts}${preview ? ' — ' + escHtml(preview) : ''}</span>
         <div class="note-actions" onclick="event.stopPropagation()">
+          <button class="note-edit" onclick="exportNote('${safeTs}','md')"  title="export .md">MD</button>
+          <button class="note-edit" onclick="exportNote('${safeTs}','txt')" title="export .txt">TXT</button>
           <button class="note-edit" onclick="startEditNote('${safeTs}')" title="edit">✎</button>
           <button class="note-del"  onclick="deleteNote('${safeTs}')"    title="delete">×</button>
         </div>
@@ -2784,26 +2784,18 @@ function logNote() {
   document.getElementById('notes-log').scrollTop = 0;
 }
 
-function exportNotes(fmt) {
-  const notes = loadNotes();
-  if (!notes.length) { alert('No notes to export.'); return; }
-  const sorted = [...notes].sort((a,b) => new Date(a.ts)-new Date(b.ts));
-  let out = '';
-  if (fmt === 'md') {
-    out = `# Notes Export\n_${new Date().toLocaleString()}_\n\n`;
-    sorted.forEach(n => {
-      const d = new Date(n.ts);
-      out += `## ${d.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}\n\n${n.text}\n\n---\n\n`;
-    });
-  } else {
-    out = `NOTES EXPORT — ${new Date().toLocaleString()}\n${'='.repeat(48)}\n\n`;
-    sorted.forEach(n => {
-      out += `[${new Date(n.ts).toLocaleString()}]\n${n.text}\n\n`;
-    });
-  }
-  const a    = Object.assign(document.createElement('a'), {
-    href:     URL.createObjectURL(new Blob([out],{type:'text/plain'})),
-    download: `notes-${new Date().toISOString().slice(0,10)}.${fmt}`,
+function exportNote(ts, fmt) {
+  const note = loadNotes().find(n => n.ts === ts);
+  if (!note) return;
+  const d   = new Date(note.ts);
+  const dateStr = d.toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' });
+  const slug    = d.toISOString().slice(0, 16).replace(/[T:]/g, '-');
+  const out = fmt === 'md'
+    ? `# ${dateStr}\n\n${note.text}\n`
+    : `[${dateStr}]\n\n${note.text}\n`;
+  const a = Object.assign(document.createElement('a'), {
+    href:     URL.createObjectURL(new Blob([out], { type: 'text/plain' })),
+    download: `note-${slug}.${fmt}`,
   });
   a.click();
 }
