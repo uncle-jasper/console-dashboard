@@ -2729,6 +2729,7 @@ function renderNotes() {
 }
 
 function deleteNote(ts) {
+  if (!confirm('Delete this note?')) return;
   if (editingTs === ts) cancelEdit();
   saveNotes(loadNotes().filter(n => n.ts !== ts));
   renderNotes();
