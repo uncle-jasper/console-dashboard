@@ -3628,11 +3628,12 @@ function editCurrent(slot) {
   const ui = document.createElement('div');
   ui.className = 'current-edit-ui';
 
-  if (slot === 'reading') {
-    // Search mode
+  if (slot === 'reading' || slot === 'listening') {
+    // Search mode — shared UI for both slots
+    const isMusic = slot === 'listening';
     const inp = document.createElement('input');
     inp.className   = 'current-input';
-    inp.placeholder = 'search book…';
+    inp.placeholder = isMusic ? 'search artist, song, album…' : 'search book…';
     inp.value       = data.text || '';
 
     const clearBtn = document.createElement('button');
@@ -3646,22 +3647,37 @@ function editCurrent(slot) {
     results.style.display = 'none';
 
     let searchTimer = null;
+    let ignoreBlur = false;
+
     inp.addEventListener('input', () => {
       clearTimeout(searchTimer);
       const q = inp.value.trim();
       if (q.length < 2) { results.style.display = 'none'; return; }
-      searchTimer = setTimeout(() => searchBooks(q, results, slot, ui, valEl, editBtn), 400);
+      const fn = isMusic ? searchMusic : searchBooks;
+      searchTimer = setTimeout(() => fn(q, results, slot, ui, valEl, editBtn), 400);
     });
     inp.addEventListener('keydown', e => {
-      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
+      if (e.key === 'Escape') { results.style.display = 'none'; cancelEditCurrent(slot, ui, valEl, editBtn); }
       if (e.key === 'Enter' && inp.value.trim()) {
-        // Save as plain text if user just typed without selecting
         results.style.display = 'none';
         saveCurrent(slot, inp.value.trim(), '');
         cancelEditCurrent(slot, ui, valEl, editBtn);
       }
     });
+    inp.addEventListener('blur', () => {
+      if (ignoreBlur) return;
+      // Short delay so clicks on results fire first
+      setTimeout(() => {
+        if (results.style.display !== 'none') return;
+        if (inp.value.trim()) saveCurrent(slot, inp.value.trim(), '');
+        cancelEditCurrent(slot, ui, valEl, editBtn);
+      }, 200);
+    });
+    results.addEventListener('mousedown', () => { ignoreBlur = true; });
+    results.addEventListener('mouseup',   () => { ignoreBlur = false; });
+    clearBtn.addEventListener('mousedown', () => { ignoreBlur = true; });
     clearBtn.addEventListener('click', () => {
+      ignoreBlur = false;
       saveCurrent(slot, '', '');
       cancelEditCurrent(slot, ui, valEl, editBtn);
     });
@@ -3670,48 +3686,6 @@ function editCurrent(slot) {
     ui.appendChild(clearBtn);
     slotEl.appendChild(ui);
     slotEl.appendChild(results);
-    inp.focus();
-
-  } else if (slot === 'listening') {
-    // Text + URL
-    const inp = document.createElement('input');
-    inp.className   = 'current-input';
-    inp.placeholder = 'artist – title…';
-    inp.value       = data.text || '';
-    inp.style.flex  = '2';
-
-    const urlInp = document.createElement('input');
-    urlInp.className   = 'current-input';
-    urlInp.placeholder = 'url (optional)';
-    urlInp.value       = data.url || '';
-    urlInp.style.flex  = '1';
-
-    const clearBtn = document.createElement('button');
-    clearBtn.className   = 'btn';
-    clearBtn.textContent = '×';
-    clearBtn.style.cssText = 'font-size:9px;padding:1px 4px;';
-
-    const commit = () => {
-      saveCurrent(slot, inp.value, urlInp.value);
-      cancelEditCurrent(slot, ui, valEl, editBtn);
-    };
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter')  commit();
-      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
-    });
-    urlInp.addEventListener('keydown', e => {
-      if (e.key === 'Enter')  commit();
-      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
-    });
-    clearBtn.addEventListener('click', () => {
-      saveCurrent(slot, '', '');
-      cancelEditCurrent(slot, ui, valEl, editBtn);
-    });
-
-    ui.appendChild(inp);
-    ui.appendChild(urlInp);
-    ui.appendChild(clearBtn);
-    slotEl.appendChild(ui);
     inp.focus();
 
   } else {
@@ -3760,19 +3734,65 @@ async function searchBooks(query, resultsEl, slot, ui, valEl, editBtn) {
   resultsEl.style.display = 'block';
   try {
     const resp = await fetch(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=6&fields=title,author_name,key`
+      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&printType=books&langRestrict=en`
     );
     const data = await resp.json();
     resultsEl.innerHTML = '';
-    if (!data.docs || !data.docs.length) {
+    if (!data.items || !data.items.length) {
       resultsEl.innerHTML = '<div class="current-search-result">no results</div>';
       return;
     }
-    data.docs.forEach(book => {
-      const title  = book.title || 'Unknown';
-      const author = book.author_name ? book.author_name[0] : '';
-      const url    = book.key ? 'https://openlibrary.org' + book.key : '';
+    data.items.forEach(item => {
+      const info   = item.volumeInfo || {};
+      const title  = info.title || 'Unknown';
+      const author = info.authors ? info.authors[0] : '';
+      const url    = info.infoLink || '';
       const label  = author ? `${title} — ${author}` : title;
+      const row = document.createElement('div');
+      row.className   = 'current-search-result';
+      row.textContent = label;
+      row.addEventListener('click', () => {
+        saveCurrent(slot, label, url);
+        cancelEditCurrent(slot, ui, valEl, editBtn);
+      });
+      resultsEl.appendChild(row);
+    });
+  } catch(e) {
+    resultsEl.innerHTML = '<div class="current-search-result">search failed</div>';
+  }
+}
+
+async function searchMusic(query, resultsEl, slot, ui, valEl, editBtn) {
+  resultsEl.innerHTML = '<div class="current-search-result">searching…</div>';
+  resultsEl.style.display = 'block';
+  try {
+    // Search albums first, then tracks; combine with albums on top
+    const [albumResp, trackResp] = await Promise.all([
+      fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=4`),
+      fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=musicTrack&limit=4`),
+    ]);
+    const [albumData, trackData] = await Promise.all([albumResp.json(), trackResp.json()]);
+    resultsEl.innerHTML = '';
+
+    const items = [];
+    (albumData.results || []).forEach(r => {
+      items.push({
+        label: `${r.collectionName} — ${r.artistName} [album]`,
+        url:   r.collectionViewUrl || '',
+      });
+    });
+    (trackData.results || []).forEach(r => {
+      items.push({
+        label: `${r.trackName} — ${r.artistName}`,
+        url:   r.trackViewUrl || '',
+      });
+    });
+
+    if (!items.length) {
+      resultsEl.innerHTML = '<div class="current-search-result">no results</div>';
+      return;
+    }
+    items.forEach(({ label, url }) => {
       const row = document.createElement('div');
       row.className   = 'current-search-result';
       row.textContent = label;
