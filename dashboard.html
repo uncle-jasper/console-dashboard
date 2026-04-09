@@ -971,6 +971,101 @@
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* ── CURRENT STRIP ──────────────────────────────────── */
+    .current-strip {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+      padding-bottom: 7px;
+      flex-wrap: wrap;
+    }
+    .current-slot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      padding-right: 14px;
+      border-right: 1px solid var(--border);
+      margin-right: 14px;
+      position: relative;
+    }
+    .current-slot:last-child {
+      border-right: none;
+      margin-right: 0;
+      padding-right: 0;
+    }
+    .current-label {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--fg-dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .current-val {
+      font-size: 10px;
+      color: var(--fg-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+    .current-val a {
+      color: var(--fg);
+      text-decoration: none;
+    }
+    .current-val a:hover { text-decoration: underline; }
+    .current-val.unset { color: var(--fg-dim); font-style: italic; }
+    .current-edit-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 9px; color: var(--fg-dim); padding: 0 2px;
+      opacity: 0; transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .current-slot:hover .current-edit-btn { opacity: 0.6; }
+    .current-edit-btn:hover { opacity: 1 !important; color: var(--fg); }
+    .current-edit-ui {
+      display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;
+    }
+    .current-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--fg-muted);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 1px 2px;
+      outline: none;
+      min-width: 0;
+      flex: 1;
+    }
+    .current-input:focus { border-bottom-color: var(--fg); }
+    .current-search-results {
+      position: absolute;
+      top: 100%;
+      left: 60px;
+      right: 0;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      z-index: 100;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    .current-search-result {
+      padding: 4px 8px;
+      font-size: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--fg-muted);
+    }
+    .current-search-result:last-child { border-bottom: none; }
+    .current-search-result:hover { background: var(--border); color: var(--fg); }
   </style>
 </head>
 <body>
@@ -1112,6 +1207,25 @@
     </div>
   </div>
 
+
+  <!-- CURRENT STRIP -->
+  <div class="current-strip" id="current-strip">
+    <div class="current-slot" id="current-slot-listening">
+      <span class="current-label">LISTENING</span>
+      <span class="current-val unset" id="current-val-listening">—</span>
+      <button class="current-edit-btn" onclick="editCurrent('listening')" title="set">✎</button>
+    </div>
+    <div class="current-slot" id="current-slot-reading">
+      <span class="current-label">READING</span>
+      <span class="current-val unset" id="current-val-reading">—</span>
+      <button class="current-edit-btn" onclick="editCurrent('reading')" title="set">✎</button>
+    </div>
+    <div class="current-slot" id="current-slot-mood">
+      <span class="current-label">MOOD</span>
+      <span class="current-val unset" id="current-val-mood">—</span>
+      <button class="current-edit-btn" onclick="editCurrent('mood')" title="set">✎</button>
+    </div>
+  </div>
 
   <!-- ROW 2: WEATHER -->
   <div class="row" id="row-weather">
@@ -2793,6 +2907,10 @@ document.getElementById('note-input').addEventListener('keydown', e => {
 // THEME
 // =======================================================
 
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function setTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem('dash_theme', t);
@@ -3455,6 +3573,220 @@ function clearAllTodos() {
   renderTodos();
 }
 
+// ── CURRENT STRIP ────────────────────────────────────────
+
+const CURRENT_KEYS = {
+  listening: 'dash_current_listening',
+  reading:   'dash_current_reading',
+  mood:      'dash_current_mood',
+};
+
+function loadCurrentStrip() {
+  ['listening', 'reading', 'mood'].forEach(slot => {
+    const raw = localStorage.getItem(CURRENT_KEYS[slot]);
+    const data = raw ? JSON.parse(raw) : null;
+    renderCurrentSlot(slot, data);
+  });
+}
+
+function renderCurrentSlot(slot, data) {
+  const el = document.getElementById('current-val-' + slot);
+  if (!el) return;
+  if (!data || !data.text) {
+    el.className = 'current-val unset';
+    el.innerHTML = '—';
+    return;
+  }
+  el.className = 'current-val';
+  if (data.url) {
+    el.innerHTML = `<a href="${data.url}" target="_blank" rel="noopener">${escHtml(data.text)}</a>`;
+  } else {
+    el.textContent = data.text;
+  }
+}
+
+function saveCurrent(slot, text, url) {
+  const data = text ? { text: text.trim(), url: url ? url.trim() : '' } : null;
+  localStorage.setItem(CURRENT_KEYS[slot], JSON.stringify(data));
+  renderCurrentSlot(slot, data);
+}
+
+function editCurrent(slot) {
+  const slotEl = document.getElementById('current-slot-' + slot);
+  if (!slotEl) return;
+  // Already editing?
+  if (slotEl.querySelector('.current-edit-ui')) return;
+
+  const valEl  = document.getElementById('current-val-' + slot);
+  const editBtn = slotEl.querySelector('.current-edit-btn');
+  const raw  = localStorage.getItem(CURRENT_KEYS[slot]);
+  const data = raw ? JSON.parse(raw) : {};
+
+  valEl.style.display  = 'none';
+  editBtn.style.display = 'none';
+
+  const ui = document.createElement('div');
+  ui.className = 'current-edit-ui';
+
+  if (slot === 'reading') {
+    // Search mode
+    const inp = document.createElement('input');
+    inp.className   = 'current-input';
+    inp.placeholder = 'search book…';
+    inp.value       = data.text || '';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className   = 'btn';
+    clearBtn.textContent = '×';
+    clearBtn.style.cssText = 'font-size:9px;padding:1px 4px;';
+    clearBtn.title = 'clear';
+
+    const results = document.createElement('div');
+    results.className = 'current-search-results';
+    results.style.display = 'none';
+
+    let searchTimer = null;
+    inp.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = inp.value.trim();
+      if (q.length < 2) { results.style.display = 'none'; return; }
+      searchTimer = setTimeout(() => searchBooks(q, results, slot, ui, valEl, editBtn), 400);
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
+      if (e.key === 'Enter' && inp.value.trim()) {
+        // Save as plain text if user just typed without selecting
+        results.style.display = 'none';
+        saveCurrent(slot, inp.value.trim(), '');
+        cancelEditCurrent(slot, ui, valEl, editBtn);
+      }
+    });
+    clearBtn.addEventListener('click', () => {
+      saveCurrent(slot, '', '');
+      cancelEditCurrent(slot, ui, valEl, editBtn);
+    });
+
+    ui.appendChild(inp);
+    ui.appendChild(clearBtn);
+    slotEl.appendChild(ui);
+    slotEl.appendChild(results);
+    inp.focus();
+
+  } else if (slot === 'listening') {
+    // Text + URL
+    const inp = document.createElement('input');
+    inp.className   = 'current-input';
+    inp.placeholder = 'artist – title…';
+    inp.value       = data.text || '';
+    inp.style.flex  = '2';
+
+    const urlInp = document.createElement('input');
+    urlInp.className   = 'current-input';
+    urlInp.placeholder = 'url (optional)';
+    urlInp.value       = data.url || '';
+    urlInp.style.flex  = '1';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className   = 'btn';
+    clearBtn.textContent = '×';
+    clearBtn.style.cssText = 'font-size:9px;padding:1px 4px;';
+
+    const commit = () => {
+      saveCurrent(slot, inp.value, urlInp.value);
+      cancelEditCurrent(slot, ui, valEl, editBtn);
+    };
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  commit();
+      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
+    });
+    urlInp.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  commit();
+      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
+    });
+    clearBtn.addEventListener('click', () => {
+      saveCurrent(slot, '', '');
+      cancelEditCurrent(slot, ui, valEl, editBtn);
+    });
+
+    ui.appendChild(inp);
+    ui.appendChild(urlInp);
+    ui.appendChild(clearBtn);
+    slotEl.appendChild(ui);
+    inp.focus();
+
+  } else {
+    // Mood — plain text
+    const inp = document.createElement('input');
+    inp.className   = 'current-input';
+    inp.placeholder = 'how are you feeling…';
+    inp.value       = data.text || '';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className   = 'btn';
+    clearBtn.textContent = '×';
+    clearBtn.style.cssText = 'font-size:9px;padding:1px 4px;';
+
+    const commit = () => {
+      saveCurrent(slot, inp.value, '');
+      cancelEditCurrent(slot, ui, valEl, editBtn);
+    };
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  commit();
+      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
+    });
+    inp.addEventListener('blur', commit);
+    clearBtn.addEventListener('click', () => {
+      saveCurrent(slot, '', '');
+      cancelEditCurrent(slot, ui, valEl, editBtn);
+    });
+
+    ui.appendChild(inp);
+    ui.appendChild(clearBtn);
+    slotEl.appendChild(ui);
+    inp.focus();
+  }
+}
+
+function cancelEditCurrent(slot, ui, valEl, editBtn) {
+  ui.remove();
+  const results = document.querySelector(`#current-slot-${slot} .current-search-results`);
+  if (results) results.remove();
+  valEl.style.display  = '';
+  editBtn.style.display = '';
+}
+
+async function searchBooks(query, resultsEl, slot, ui, valEl, editBtn) {
+  resultsEl.innerHTML = '<div class="current-search-result">searching…</div>';
+  resultsEl.style.display = 'block';
+  try {
+    const resp = await fetch(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=6&fields=title,author_name,key`
+    );
+    const data = await resp.json();
+    resultsEl.innerHTML = '';
+    if (!data.docs || !data.docs.length) {
+      resultsEl.innerHTML = '<div class="current-search-result">no results</div>';
+      return;
+    }
+    data.docs.forEach(book => {
+      const title  = book.title || 'Unknown';
+      const author = book.author_name ? book.author_name[0] : '';
+      const url    = book.key ? 'https://openlibrary.org' + book.key : '';
+      const label  = author ? `${title} — ${author}` : title;
+      const row = document.createElement('div');
+      row.className   = 'current-search-result';
+      row.textContent = label;
+      row.addEventListener('click', () => {
+        saveCurrent(slot, label, url);
+        cancelEditCurrent(slot, ui, valEl, editBtn);
+      });
+      resultsEl.appendChild(row);
+    });
+  } catch(e) {
+    resultsEl.innerHTML = '<div class="current-search-result">search failed</div>';
+  }
+}
+
 // Enter key to add todo
 document.getElementById('todo-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); addTodo(); }
@@ -4102,6 +4434,7 @@ function updateRowButtons(container) {
   renderQuote();
   renderNotes();
   renderCalendar();
+  loadCurrentStrip();
   // Timer
   renderTimer();
   const soundBtn = document.getElementById('timer-sound-btn');
