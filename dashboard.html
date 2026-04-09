@@ -3647,7 +3647,6 @@ function editCurrent(slot) {
     results.style.display = 'none';
 
     let searchTimer = null;
-    let ignoreBlur = false;
 
     inp.addEventListener('input', () => {
       clearTimeout(searchTimer);
@@ -3658,26 +3657,13 @@ function editCurrent(slot) {
     });
     inp.addEventListener('keydown', e => {
       if (e.key === 'Escape') { results.style.display = 'none'; cancelEditCurrent(slot, ui, valEl, editBtn); }
-      if (e.key === 'Enter' && inp.value.trim()) {
+      if (e.key === 'Enter') {
         results.style.display = 'none';
-        saveCurrent(slot, inp.value.trim(), '');
+        if (inp.value.trim()) saveCurrent(slot, inp.value.trim(), '');
         cancelEditCurrent(slot, ui, valEl, editBtn);
       }
     });
-    inp.addEventListener('blur', () => {
-      if (ignoreBlur) return;
-      // Short delay so clicks on results fire first
-      setTimeout(() => {
-        if (results.style.display !== 'none') return;
-        if (inp.value.trim()) saveCurrent(slot, inp.value.trim(), '');
-        cancelEditCurrent(slot, ui, valEl, editBtn);
-      }, 200);
-    });
-    results.addEventListener('mousedown', () => { ignoreBlur = true; });
-    results.addEventListener('mouseup',   () => { ignoreBlur = false; });
-    clearBtn.addEventListener('mousedown', () => { ignoreBlur = true; });
     clearBtn.addEventListener('click', () => {
-      ignoreBlur = false;
       saveCurrent(slot, '', '');
       cancelEditCurrent(slot, ui, valEl, editBtn);
     });
@@ -3686,7 +3672,7 @@ function editCurrent(slot) {
     ui.appendChild(clearBtn);
     slotEl.appendChild(ui);
     slotEl.appendChild(results);
-    inp.focus();
+    requestAnimationFrame(() => inp.focus());
 
   } else {
     // Mood — plain text
@@ -3700,15 +3686,10 @@ function editCurrent(slot) {
     clearBtn.textContent = '×';
     clearBtn.style.cssText = 'font-size:9px;padding:1px 4px;';
 
-    const commit = () => {
-      saveCurrent(slot, inp.value, '');
-      cancelEditCurrent(slot, ui, valEl, editBtn);
-    };
     inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter')  commit();
-      if (e.key === 'Escape') cancelEditCurrent(slot, ui, valEl, editBtn);
+      if (e.key === 'Enter')  { saveCurrent(slot, inp.value, ''); cancelEditCurrent(slot, ui, valEl, editBtn); }
+      if (e.key === 'Escape') { cancelEditCurrent(slot, ui, valEl, editBtn); }
     });
-    inp.addEventListener('blur', commit);
     clearBtn.addEventListener('click', () => {
       saveCurrent(slot, '', '');
       cancelEditCurrent(slot, ui, valEl, editBtn);
@@ -3717,7 +3698,7 @@ function editCurrent(slot) {
     ui.appendChild(inp);
     ui.appendChild(clearBtn);
     slotEl.appendChild(ui);
-    inp.focus();
+    requestAnimationFrame(() => inp.focus());
   }
 }
 
