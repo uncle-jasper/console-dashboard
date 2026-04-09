@@ -4097,6 +4097,7 @@ function updateRowButtons(container) {
   setInterval(updateClock, 1000);
   setInterval(renderGreeting, 60000);
   loadWeather();
+  setInterval(loadWeather, 30 * 60 * 1000); // refresh weather every 30 min
   renderWord();
   renderQuote();
   renderNotes();
