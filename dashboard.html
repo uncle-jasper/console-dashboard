@@ -3851,6 +3851,8 @@ const SYNC_KEYS = [
   'dash_quote_mode', 'dash_timer_sound', 'dashboard_notes_v1',
   'dash_zones', 'dash_todos_v1', 'dash_row_order', 'dash_panel_swaps',
   'dash_note_h', 'dash_google_task_list', 'dash_remind_time',
+  'dash_current_listening', 'dash_current_reading', 'dash_current_mood',
+  'dash_notes_expanded',
 ];
 
 let gToken          = null;  // access token (memory only)
@@ -4308,6 +4310,7 @@ function hydrateFromDrive() {
   renderTodos();
   renderWord();
   renderQuote();
+  loadCurrentStrip();
   const soundBtn = document.getElementById('timer-sound-btn');
   if (soundBtn) {
     soundBtn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
