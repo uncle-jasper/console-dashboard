@@ -3620,7 +3620,7 @@ function editCurrent(slot) {
   const valEl  = document.getElementById('current-val-' + slot);
   const editBtn = slotEl.querySelector('.current-edit-btn');
   const raw  = localStorage.getItem(CURRENT_KEYS[slot]);
-  const data = raw ? JSON.parse(raw) : {};
+  const data = raw ? (JSON.parse(raw) || {}) : {};
 
   valEl.style.display  = 'none';
   editBtn.style.display = 'none';
