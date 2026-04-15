@@ -1142,6 +1142,24 @@
     }
     .portfolio-edit-inp:focus { border-bottom-color: var(--fg); }
     .portfolio-stale { font-size: 8px; color: var(--fg-dim); margin-left: 4px; }
+    .portfolio-tabs { display: flex; gap: 2px; }
+    .portfolio-tab {
+      background: none; border: 1px solid var(--border); cursor: pointer;
+      font-size: 8px; letter-spacing: 0.15em; color: var(--fg-dim);
+      padding: 1px 6px; font-family: inherit;
+    }
+    .portfolio-tab.active { border-color: var(--fg-muted); color: var(--fg); }
+    .portfolio-tab:hover  { color: var(--fg); }
+    .portfolio-range-row  {
+      display: flex; gap: 4px; margin-bottom: 8px; align-items: center;
+    }
+    .portfolio-range-btn {
+      background: none; border: 1px solid var(--border); cursor: pointer;
+      font-size: 8px; letter-spacing: 0.12em; color: var(--fg-dim);
+      padding: 1px 6px; font-family: inherit;
+    }
+    .portfolio-range-btn.active { border-color: var(--fg-muted); color: var(--fg); }
+    .portfolio-range-btn:hover  { color: var(--fg); }
   </style>
 </head>
 <body>
@@ -1434,12 +1452,18 @@
   <div class="row" id="row-portfolio">
     <div class="panel" style="width:100%">
       <div class="panel-hdr" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>PORTFOLIO</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span>PORTFOLIO</span>
+          <div class="portfolio-tabs">
+            <button class="portfolio-tab active" id="ptab-pos" onclick="setPortfolioTab('positions')">POS</button>
+            <button class="portfolio-tab"        id="ptab-chart" onclick="setPortfolioTab('chart')">CHT</button>
+          </div>
+        </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <span class="portfolio-stale" id="portfolio-stale"></span>
           <button class="btn" style="font-size:9px;padding:1px 5px;" onclick="refreshPortfolioPrices()">↻</button>
           <button class="btn" style="font-size:9px;padding:1px 5px;" onclick="showPortfolioHelp()" title="how to update">?</button>
-          <button class="portfolio-edit-btn" onclick="togglePortfolioEdit()">EDIT</button>
+          <button class="portfolio-edit-btn" id="portfolio-edit-btn" onclick="togglePortfolioEdit()">EDIT</button>
         </div>
       </div>
       <div class="portfolio-wrap" id="portfolio-wrap">
@@ -4493,6 +4517,211 @@ TIP: The Cost Basis shown here should always match the
 async function initPortfolio() {
   const prices = await fetchPortfolioPrices(false);
   renderPortfolio(prices);
+}
+
+// ── Portfolio Chart ──────────────────────────────────────────────────────────
+
+let _portfolioTab = 'positions';
+let _chartRange   = '1M';
+let _chartData    = null;
+
+const PORTFOLIO_CHART_CACHE = 'dash_portfolio_chart_';
+
+function setPortfolioTab(tab) {
+  _portfolioTab = tab;
+  document.getElementById('ptab-pos')?.classList.toggle('active', tab === 'positions');
+  document.getElementById('ptab-chart')?.classList.toggle('active', tab === 'chart');
+  const editBtn = document.getElementById('portfolio-edit-btn');
+  if (editBtn) editBtn.style.visibility = tab === 'positions' ? '' : 'hidden';
+  if (tab === 'positions') {
+    _portfolioEditMode = false;
+    const prices = JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null')?.prices || {};
+    renderPortfolio(prices);
+  } else {
+    renderPortfolioChart();
+  }
+}
+
+function setChartRange(range) {
+  _chartRange = range;
+  renderPortfolioChart();
+}
+
+async function fetchPortfolioHistory(range) {
+  const today    = new Date().toISOString().slice(0, 10);
+  const cacheKey = PORTFOLIO_CHART_CACHE + range;
+  const cached   = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+  if (cached && cached.date === today) return cached.data;
+
+  const portfolio = getPortfolio();
+  const positions = portfolio.accounts.flatMap(a => a.positions);
+  const tickers   = [...new Set(positions.map(p => p.ticker))];
+
+  const yhRangeMap = { '1W': '5d', '1M': '1mo', '3M': '3mo', '1Y': '1y' };
+  const yhRange    = yhRangeMap[range] || '1mo';
+
+  const tickerHistory = {};
+  for (const ticker of tickers) {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${yhRange}`;
+    let data = null;
+    try { const r = await fetch(url); data = await r.json(); } catch(e) {}
+    if (!data?.chart?.result?.[0]) {
+      try { const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); data = await r.json(); } catch(e) {}
+    }
+    if (data?.chart?.result?.[0]) {
+      const res = data.chart.result[0];
+      const ts  = res.timestamp || [];
+      const cl  = res.indicators?.quote?.[0]?.close || [];
+      tickerHistory[ticker] = {
+        dates:  ts.map(t => new Date(t * 1000).toISOString().slice(0, 10)),
+        closes: cl,
+      };
+    }
+  }
+
+  // Union of all trading dates, sorted
+  const allDates = new Set();
+  tickers.filter(t => tickerHistory[t]).forEach(t => tickerHistory[t].dates.forEach(d => allDates.add(d)));
+  const sortedDates = [...allDates].sort();
+  if (!sortedDates.length) return null;
+
+  // Fill-forward: carry last known close price per ticker across missing dates
+  const lastKnown = {};
+  const values = sortedDates.map(date => {
+    let total = 0, anyPrice = false;
+    for (const pos of positions) {
+      const hist = tickerHistory[pos.ticker];
+      if (hist) {
+        const idx = hist.dates.indexOf(date);
+        if (idx !== -1 && hist.closes[idx] != null) lastKnown[pos.ticker] = hist.closes[idx];
+      }
+      if (lastKnown[pos.ticker] != null) { total += pos.shares * lastKnown[pos.ticker]; anyPrice = true; }
+    }
+    return anyPrice ? total : 0;
+  });
+
+  // Trim leading zeros (days before all tickers have any data)
+  let start = 0;
+  while (start < values.length - 1 && values[start] === 0) start++;
+
+  const resultData = { dates: sortedDates.slice(start), values: values.slice(start) };
+  localStorage.setItem(cacheKey, JSON.stringify({ date: today, data: resultData }));
+  return resultData;
+}
+
+async function renderPortfolioChart() {
+  const wrap = document.getElementById('portfolio-wrap');
+  if (!wrap) return;
+
+  const ranges    = ['1W', '1M', '3M', '1Y'];
+  const rangeBtns = ranges.map(r =>
+    `<button class="portfolio-range-btn${r === _chartRange ? ' active' : ''}" onclick="setChartRange('${r}')">${r}</button>`
+  ).join('');
+
+  wrap.innerHTML = `<div class="portfolio-range-row">${rangeBtns}</div>
+    <div id="portfolio-chart-area">
+      <div class="portfolio-loading" style="padding:20px 0;text-align:center;">// loading chart…</div>
+    </div>`;
+
+  const data = await fetchPortfolioHistory(_chartRange);
+  const area = document.getElementById('portfolio-chart-area');
+  if (!area) return;
+
+  if (!data || data.dates.length < 2) {
+    area.innerHTML = '<div class="portfolio-loading" style="padding:20px 0;text-align:center;">// no data</div>';
+    return;
+  }
+  area.innerHTML = buildChartSVG(data.dates, data.values);
+}
+
+function buildChartSVG(dates, values) {
+  const W = 400, H = 130;
+  const PAD = { top: 14, right: 10, bottom: 22, left: 10 };
+  const cW = W - PAD.left - PAD.right, cH = H - PAD.top - PAD.bottom;
+
+  const minV = Math.min(...values), maxV = Math.max(...values);
+  const rng  = maxV - minV || 1;
+
+  const isGain  = values[values.length - 1] >= values[0];
+  const lineClr = isGain ? 'var(--fg)' : '#d94f4f';
+
+  const pts = values.map((v, i) => [
+    PAD.left + (i / (values.length - 1)) * cW,
+    PAD.top  + (1 - (v - minV) / rng) * cH,
+  ]);
+
+  const poly  = pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const first = pts[0], last = pts[pts.length - 1];
+  const areaPath = `M${first[0].toFixed(1)},${first[1].toFixed(1)} ` +
+    pts.slice(1).map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') +
+    ` L${last[0].toFixed(1)},${(PAD.top + cH).toFixed(1)} L${first[0].toFixed(1)},${(PAD.top + cH).toFixed(1)} Z`;
+
+  const fmtK   = v => v >= 1000 ? `$${(v/1000).toFixed(0)}k` : `$${v.toFixed(0)}`;
+  const gradId = 'pcg' + Math.random().toString(36).slice(2, 6);
+  const glAmt  = values[values.length - 1] - values[0];
+  const glStr  = `${fmtGL(glAmt)} (${fmtPct((glAmt / values[0]) * 100)})`;
+
+  _chartData = { pts, dates, values, W, H, PAD };
+
+  return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+    <span style="font-size:11px;color:var(--fg);">${fmt$(values[values.length-1])}</span>
+    <span style="font-size:9px;color:${lineClr};">${glStr}</span>
+  </div>
+  <div style="position:relative;">
+    <div id="portfolio-chart-tooltip" style="display:none;position:absolute;top:3px;font-size:9px;color:var(--fg);background:var(--bg);padding:1px 5px;letter-spacing:0.06em;pointer-events:none;z-index:2;white-space:nowrap;border:1px solid var(--border);"></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;cursor:crosshair;"
+      onmousemove="portfolioChartHover(event)" onmouseleave="portfolioChartLeave()">
+      <defs>
+        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${lineClr}" stop-opacity="0.22"/>
+          <stop offset="100%" stop-color="${lineClr}" stop-opacity="0.01"/>
+        </linearGradient>
+      </defs>
+      <path d="${areaPath}" fill="url(#${gradId})" stroke="none"/>
+      <polyline points="${poly}" fill="none" stroke="${lineClr}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <line id="portfolio-cursor" x1="0" y1="${PAD.top}" x2="0" y2="${PAD.top+cH}" stroke="${lineClr}" stroke-width="0.75" stroke-dasharray="3,2" opacity="0"/>
+      <circle id="portfolio-cursor-dot" cx="0" cy="0" r="3" fill="${lineClr}" opacity="0"/>
+      <text x="${PAD.left}" y="${H-5}" text-anchor="start" font-size="8" fill="var(--fg-dim)" font-family="inherit">${dates[0].slice(5)}</text>
+      <text x="${W-PAD.right}" y="${H-5}" text-anchor="end" font-size="8" fill="var(--fg-dim)" font-family="inherit">${dates[dates.length-1].slice(5)}</text>
+      <text x="${W-PAD.right}" y="${PAD.top+9}" text-anchor="end" font-size="8" fill="var(--fg-dim)" font-family="inherit">${fmtK(maxV)}</text>
+      <text x="${W-PAD.right}" y="${PAD.top+cH-2}" text-anchor="end" font-size="8" fill="var(--fg-dim)" font-family="inherit">${fmtK(minV)}</text>
+    </svg>
+  </div>`;
+}
+
+function portfolioChartHover(event) {
+  if (!_chartData) return;
+  const { pts, dates, values, W } = _chartData;
+  const svg  = event.currentTarget;
+  const rect = svg.getBoundingClientRect();
+  const svgX = (event.clientX - rect.left) / rect.width * W;
+  const pxX  = event.clientX - rect.left;
+
+  let idx = 0, minD = Infinity;
+  pts.forEach(([x], i) => { const d = Math.abs(x - svgX); if (d < minD) { minD = d; idx = i; } });
+
+  const [cx, cy] = pts[idx];
+  const cur = document.getElementById('portfolio-cursor');
+  if (cur) { cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.setAttribute('opacity', '1'); }
+  const dot = document.getElementById('portfolio-cursor-dot');
+  if (dot) { dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('opacity', '1'); }
+
+  const tip = document.getElementById('portfolio-chart-tooltip');
+  if (tip) {
+    tip.style.display = 'block';
+    tip.textContent   = `${dates[idx].slice(5)}  ${fmt$(values[idx])}`;
+    const tipW = tip.offsetWidth || 90;
+    tip.style.left = Math.max(0, Math.min(pxX, rect.width - tipW - 4)) + 'px';
+  }
+}
+
+function portfolioChartLeave() {
+  const cur = document.getElementById('portfolio-cursor');
+  if (cur) cur.setAttribute('opacity', '0');
+  const dot = document.getElementById('portfolio-cursor-dot');
+  if (dot) dot.setAttribute('opacity', '0');
+  const tip = document.getElementById('portfolio-chart-tooltip');
+  if (tip) tip.style.display = 'none';
 }
 
 function requestNotifPermission() {
