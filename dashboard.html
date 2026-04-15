@@ -4325,16 +4325,27 @@ function fmtPct(n) {
 }
 
 async function fetchTickerPrice(ticker) {
-  // Primary: Yahoo Finance (broader mutual fund coverage, no key needed)
+  const yhUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+
+  // Try Yahoo Finance direct first
+  try {
+    const resp = await fetch(yhUrl);
+    const data = await resp.json();
+    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    if (price) return price;
+  } catch(e) {}
+
+  // CORS proxy fallback for Yahoo Finance
   try {
     const resp = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
+      `https://corsproxy.io/?${encodeURIComponent(yhUrl)}`
     );
     const data = await resp.json();
     const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
     if (price) return price;
   } catch(e) {}
-  // Fallback: Alpha Vantage
+
+  // Final fallback: Alpha Vantage (if key is set)
   const avKey = localStorage.getItem(AV_KEY_STORAGE) || DEFAULT_AV_KEY;
   if (avKey) {
     try {
@@ -4446,14 +4457,21 @@ function renderPortfolio(prices) {
   });
 
   if (!_portfolioEditMode && grandValue > 0) {
+    // Only show gain/loss if we have prices for everything
+    const allPriced = portfolio.accounts.every(a =>
+      a.positions.every(p => prices[p.ticker] != null)
+    );
     const grandGL    = grandValue - grandCost;
     const grandGLPct = grandCost > 0 ? (grandGL / grandCost) * 100 : 0;
     const grandClass = grandGL >= 0 ? 'pos' : 'neg';
+    const glHtml = allPriced
+      ? `<span class="portfolio-grand-gl ${grandClass}">${fmtGL(grandGL)} (${fmtPct(grandGLPct)})</span>`
+      : `<span class="portfolio-stale">partial prices</span>`;
     html += `<div class="portfolio-grand">
       <span class="portfolio-grand-label">TOTAL</span>
       <span style="display:flex;gap:10px;align-items:baseline;">
         <span class="portfolio-grand-val">${fmt$(grandValue)}</span>
-        <span class="portfolio-grand-gl ${grandClass}">${fmtGL(grandGL)} (${fmtPct(grandGLPct)})</span>
+        ${glHtml}
       </span>
     </div>
     <div class="portfolio-contrib">CONTRIBUTED: ${fmt$(grandCost)}</div>`;
