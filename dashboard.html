@@ -421,6 +421,19 @@
     .timer-custom-inputs input:focus { border-color: var(--fg-dim); }
     .timer-custom-sep { font-size: calc(20px * var(--tw-scale, 1)); color: var(--fg-dim); }
     .timer-controls { display: flex; gap: 5px; margin-top: 2px; }
+    .timer-vol-row {
+      display: flex; align-items: center; gap: 5px;
+    }
+    .timer-vol-btn {
+      background: none; border: none; color: var(--fg-muted); font-family: inherit;
+      font-size: 13px; cursor: pointer; padding: 0 3px; line-height: 1;
+      transition: color 0.1s;
+    }
+    .timer-vol-btn:hover { color: var(--fg); }
+    .timer-vol-bar {
+      font-size: 9px; letter-spacing: 0.08em; color: var(--fg-dim);
+      user-select: none; min-width: 72px; text-align: center;
+    }
 
     /* ===================================================
        TODO
@@ -1415,7 +1428,13 @@
         <div class="timer-mode-row">
           <button class="tmbtn active" id="tm-pomo"   onclick="setTimerMode('pomo')">POMO</button>
           <button class="tmbtn"        id="tm-custom" onclick="setTimerMode('custom')">CUSTOM</button>
-          <button class="timer-sound-btn" id="timer-sound-btn" onclick="toggleTimerSound()">♪ ON</button>
+          <button class="timer-sound-btn" id="timer-sound-btn" onclick="cycleTimerSound()">♪ BEEP</button>
+          <button class="timer-sound-btn" id="timer-notif-btn" onclick="toggleTimerNotif()" title="browser notification when done">○ NOTIFY</button>
+        </div>
+        <div class="timer-vol-row" id="timer-vol-row">
+          <button class="timer-vol-btn" onclick="setTimerVolume(-10)">−</button>
+          <span class="timer-vol-bar" id="timer-vol-bar">▮▮▮▮▮▮▮▯▯▯</span>
+          <button class="timer-vol-btn" onclick="setTimerVolume(10)">+</button>
         </div>
         <div class="timer-display" id="timer-display">25:00</div>
         <div class="timer-phase-row" id="timer-phase-row">
@@ -3423,8 +3442,19 @@ let timerInterval  = null;
 let timerRunning   = false;
 let timerMode      = 'pomo';
 let timerSeconds   = 25 * 60;
-let timerSoundOn   = localStorage.getItem('dash_timer_sound') !== 'off';
 let pomoPhase      = 'work';   // 'work' | 'short' | 'long'
+
+// ── Sound / volume / notification state ──────────────────
+const TIMER_SOUNDS = ['BEEP', 'BELL', 'CHIME', 'PULSE', 'ALARM'];
+function _loadTimerSound() {
+  const s = localStorage.getItem('dash_timer_sound') || 'BEEP';
+  if (s === 'off') return 'off';
+  if (s === 'on')  return 'BEEP'; // migrate old setting
+  return TIMER_SOUNDS.includes(s) ? s : 'BEEP';
+}
+let timerSoundName = _loadTimerSound();
+let timerVolume    = Math.min(100, Math.max(0, parseInt(localStorage.getItem('dash_timer_volume') || '70', 10)));
+let timerNotif     = localStorage.getItem('dash_timer_notif') === 'on';
 let pomoWorkDone   = 0;        // completed work sessions in current cycle (0-4)
 let customDuration = 25 * 60; // saved custom duration for reset
 
@@ -3458,7 +3488,14 @@ function timerTick() {
     clearInterval(timerInterval);
     timerInterval = null;
     timerRunning  = false;
-    playTimerDone();
+    playSound(timerSoundName);
+    // Browser notification
+    if (timerNotif && 'Notification' in window && Notification.permission === 'granted') {
+      const label = timerMode === 'pomo'
+        ? (pomoPhase === 'work' ? 'WORK SESSION COMPLETE' : 'BREAK COMPLETE')
+        : 'TIMER COMPLETE';
+      new Notification('// DASHBOARD', { body: label, tag: 'dash-timer' });
+    }
     renderTimer();
     // Advance Pomodoro phase (but don't auto-start — user controls start)
     if (timerMode === 'pomo') {
@@ -3562,31 +3599,112 @@ function onCustomInput() {
   }
 }
 
-function toggleTimerSound() {
-  timerSoundOn = !timerSoundOn;
-  localStorage.setItem('dash_timer_sound', timerSoundOn ? 'on' : 'off');
-  const btn = document.getElementById('timer-sound-btn');
-  btn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
-  btn.classList.toggle('muted', !timerSoundOn);
+function cycleTimerSound() {
+  const opts = [...TIMER_SOUNDS, 'off'];
+  timerSoundName = opts[(opts.indexOf(timerSoundName) + 1) % opts.length];
+  localStorage.setItem('dash_timer_sound', timerSoundName);
+  updateTimerSoundUI();
+  if (timerSoundName !== 'off') playSound(timerSoundName);
 }
 
-function playTimerDone() {
-  if (!timerSoundOn) return;
+function setTimerVolume(delta) {
+  timerVolume = Math.min(100, Math.max(0, timerVolume + delta));
+  localStorage.setItem('dash_timer_volume', String(timerVolume));
+  updateTimerSoundUI();
+  if (timerSoundName !== 'off') playSound(timerSoundName);
+}
+
+function toggleTimerNotif() {
+  timerNotif = !timerNotif;
+  if (timerNotif && 'Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().then(() => updateTimerSoundUI());
+  }
+  localStorage.setItem('dash_timer_notif', timerNotif ? 'on' : 'off');
+  updateTimerSoundUI();
+}
+
+function updateTimerSoundUI() {
+  const soundBtn = document.getElementById('timer-sound-btn');
+  const volRow   = document.getElementById('timer-vol-row');
+  const volBar   = document.getElementById('timer-vol-bar');
+  const notifBtn = document.getElementById('timer-notif-btn');
+  const off      = timerSoundName === 'off';
+
+  if (soundBtn) {
+    soundBtn.textContent = off ? '♪ OFF' : `♪ ${timerSoundName}`;
+    soundBtn.classList.toggle('muted', off);
+  }
+  if (volRow) volRow.style.display = off ? 'none' : 'flex';
+  if (volBar) {
+    const n = Math.round(timerVolume / 10);
+    volBar.textContent = '▮'.repeat(n) + '▯'.repeat(10 - n);
+  }
+  if (notifBtn) {
+    const granted = 'Notification' in window && Notification.permission === 'granted';
+    const active  = timerNotif && granted;
+    notifBtn.textContent = active ? '● NOTIFY' : '○ NOTIFY';
+    notifBtn.classList.toggle('muted', !active);
+  }
+}
+
+function playSound(name) {
+  if (!name || name === 'off') return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [[0, 660], [0.28, 880], [0.56, 660]].forEach(([delay, freq]) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + delay + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.35);
-      osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + 0.4);
-    });
+    const v   = timerVolume / 100;
+
+    // Helper: schedule a single synthesized note
+    const note = (freq, start, dur, type = 'sine', peak = v * 0.35) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = type; osc.frequency.value = freq;
+      const t = ctx.currentTime + start;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.start(t); osc.stop(t + dur + 0.05);
+    };
+
+    switch (name) {
+      case 'BEEP':
+        note(660, 0,    0.35);
+        note(880, 0.28, 0.35);
+        note(660, 0.56, 0.35);
+        break;
+
+      case 'BELL':
+        // Rich bell via layered harmonics with long decay
+        [[1, 523], [0.5, 1047], [0.25, 1568], [0.12, 2093]].forEach(([amp, freq]) => {
+          const osc = ctx.createOscillator(), g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = 'sine'; osc.frequency.value = freq;
+          g.gain.setValueAtTime(0, ctx.currentTime);
+          g.gain.linearRampToValueAtTime(v * amp * 0.4, ctx.currentTime + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.2);
+          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 2.3);
+        });
+        break;
+
+      case 'CHIME':
+        // Ascending musical chime: C5 E5 G5 C6
+        [[0, 523], [0.2, 659], [0.4, 784], [0.6, 1047]].forEach(([t, f]) =>
+          note(f, t, 0.8, 'triangle', v * 0.4)
+        );
+        break;
+
+      case 'PULSE':
+        // Short crisp digital blips
+        note(900, 0,    0.07, 'square', v * 0.3);
+        note(900, 0.1,  0.07, 'square', v * 0.3);
+        note(900, 0.2,  0.07, 'square', v * 0.3);
+        break;
+
+      case 'ALARM':
+        // Urgent alternating two-tone alarm
+        for (let i = 0; i < 6; i++)
+          note(i % 2 === 0 ? 960 : 720, i * 0.16, 0.13, 'sine', v * 0.45);
+        break;
+    }
   } catch(e) {}
 }
 
@@ -4076,7 +4194,7 @@ const SYNC_KEYS = [
   'dash_note_h', 'dash_google_task_list', 'dash_remind_time',
   'dash_current_listening', 'dash_current_reading', 'dash_current_mood',
   'dash_notes_expanded', 'dash_portfolio',
-  'dash_row_hidden',
+  'dash_row_hidden', 'dash_timer_volume', 'dash_timer_notif',
 ];
 
 let gToken          = null;  // access token (memory only)
@@ -4964,7 +5082,9 @@ function hydrateFromDrive() {
   // Update module-level vars initialised from localStorage at startup
   wxUnit       = localStorage.getItem('dash_wx_unit') || 'F';
   quoteMode    = localStorage.getItem('dash_quote_mode') || 'stoic';
-  timerSoundOn = localStorage.getItem('dash_timer_sound') !== 'off';
+  timerSoundName = _loadTimerSound();
+  timerVolume    = Math.min(100, Math.max(0, parseInt(localStorage.getItem('dash_timer_volume') || '70', 10)));
+  timerNotif     = localStorage.getItem('dash_timer_notif') === 'on';
 
   setTheme(localStorage.getItem('dash_theme') || 'green');
   syncClockFmtBtns();
@@ -4977,11 +5097,7 @@ function hydrateFromDrive() {
   renderWord();
   renderQuote();
   loadCurrentStrip();
-  const soundBtn = document.getElementById('timer-sound-btn');
-  if (soundBtn) {
-    soundBtn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
-    soundBtn.classList.toggle('muted', !timerSoundOn);
-  }
+  updateTimerSoundUI();
   applyRowHidden();
 }
 
@@ -5210,9 +5326,7 @@ function updateRowButtons(container) {
   initPortfolio();
   // Timer
   renderTimer();
-  const soundBtn = document.getElementById('timer-sound-btn');
-  soundBtn.textContent = timerSoundOn ? '♪ ON' : '♪ OFF';
-  soundBtn.classList.toggle('muted', !timerSoundOn);
+  updateTimerSoundUI();
   // Todo
   renderTodos();
   // Pre-fill the inline reminder time input from saved preference
