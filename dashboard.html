@@ -2659,7 +2659,7 @@ async function loadWeather() {
         const dayName = DNAMES[new Date(yr, mo - 1, dy).getDay()];
         const hi = Math.round(d.temperature_2m_max[i]);
         const lo = Math.round(d.temperature_2m_min[i]);
-        const cond = wmoDesc(d.weathercode[i]).split(' ')[0];
+        const cond = wmoDesc(d.weathercode[i]).split(' ').slice(0, 2).join(' ');
         fcHtml += `<div class="wx-fc-row">
           <span class="wx-fc-name">${dayName}</span>
           <span class="wx-fc-cond">${wmoIcon(d.weathercode[i], 12)}${cond}</span>
