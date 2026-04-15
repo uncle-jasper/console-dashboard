@@ -989,6 +989,14 @@
     }
     .row-wrap:hover .row-ctrl { opacity: 0.25; }
     .row-ctrl:hover { opacity: 1 !important; }
+    .row-ctrl { cursor: grab; }
+    .row-ctrl:active { cursor: grabbing; }
+    .row-wrap.dragging { opacity: 0.35; }
+    .row-wrap.drag-over { outline: 1px solid var(--accent); }
+    .rc-drag {
+      color: var(--fg-dim); font-size: 10px; line-height: 1;
+      text-align: center; user-select: none; pointer-events: none;
+    }
     .rc-btn {
       background: none;
       border: none;
@@ -1002,7 +1010,6 @@
       transition: color 0.1s;
     }
     .rc-btn:hover { color: var(--accent); }
-    .rc-btn:disabled { opacity: 0.12; cursor: default; }
     /* Minimised row ─────────────────────────────────── */
     .row-wrap.row-minimized { margin-bottom: 3px; }
     .row-wrap.row-minimized .row { display: none; }
@@ -1013,8 +1020,7 @@
     }
     .row-wrap.row-minimized:hover .row-ctrl,
     .row-wrap.row-minimized .row-ctrl:hover { opacity: 1; }
-    .row-wrap.row-minimized .rc-up,
-    .row-wrap.row-minimized .rc-dn,
+    .row-wrap.row-minimized .rc-drag,
     .row-wrap.row-minimized .rc-swap,
     .row-wrap.row-minimized .rc-hide { display: none; }
     .rc-label   { display: none; font-size: 8px; letter-spacing: 0.18em; color: var(--fg-dim); flex: 1; }
@@ -5189,8 +5195,8 @@ function initLayoutControls() {
     wrapRow(row, container);
   });
 
-  // 4. Sync disabled states on ▲▼ buttons
-  updateRowButtons(container);
+  // 4. Enable drag-to-reorder
+  initRowDrag(container);
 
   // 5. Restore hidden rows
   applyRowHidden();
@@ -5202,6 +5208,7 @@ function wrapRow(row, container) {
 
   const ctrl = document.createElement('div');
   ctrl.className = 'row-ctrl';
+  ctrl.setAttribute('draggable', 'true');
 
   // Label shown when row is minimised
   const label = document.createElement('span');
@@ -5209,19 +5216,11 @@ function wrapRow(row, container) {
   label.textContent = ROW_LABELS[row.id] || row.id.replace('row-', '').toUpperCase();
   ctrl.appendChild(label);
 
-  const upBtn = document.createElement('button');
-  upBtn.className = 'rc-btn rc-up';
-  upBtn.title = 'move up';
-  upBtn.textContent = '▲';
-  upBtn.onclick = () => rowMove(row.id, -1);
-
-  const dnBtn = document.createElement('button');
-  dnBtn.className = 'rc-btn rc-dn';
-  dnBtn.title = 'move down';
-  dnBtn.textContent = '▼';
-  dnBtn.onclick = () => rowMove(row.id, 1);
-
-  ctrl.appendChild(upBtn);
+  // Drag handle indicator
+  const dragHandle = document.createElement('span');
+  dragHandle.className = 'rc-drag';
+  dragHandle.textContent = '⠿';
+  ctrl.appendChild(dragHandle);
 
   if (row.classList.contains('row-2') || row.classList.contains('row-3')) {
     const swapBtn = document.createElement('button');
@@ -5231,8 +5230,6 @@ function wrapRow(row, container) {
     swapBtn.onclick = () => swapPanels(row.id);
     ctrl.appendChild(swapBtn);
   }
-
-  ctrl.appendChild(dnBtn);
 
   // Hide button (visible in expanded state)
   const hideBtn = document.createElement('button');
@@ -5282,23 +5279,48 @@ function applyRowHidden() {
   });
 }
 
-function rowMove(id, dir) {
-  const container = document.getElementById('dashboard-rows');
-  const wraps = Array.from(container.querySelectorAll(':scope > .row-wrap'));
-  const row   = document.getElementById(id);
-  const wrap  = row.closest('.row-wrap');
-  const idx   = wraps.indexOf(wrap);
-  const target = wraps[idx + dir];
-  if (!target) return;
+function initRowDrag(container) {
+  let dragSrc = null;
 
-  if (dir === -1) {
-    container.insertBefore(wrap, target);
-  } else {
-    container.insertBefore(target, wrap);
-  }
+  container.addEventListener('dragstart', e => {
+    const wrap = e.target.closest('.row-wrap');
+    if (!wrap) return;
+    dragSrc = wrap;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+    // Fade after ghost snapshot is taken
+    requestAnimationFrame(() => wrap.classList.add('dragging'));
+  });
 
-  saveRowOrder(container);
-  updateRowButtons(container);
+  container.addEventListener('dragend', () => {
+    if (dragSrc) dragSrc.classList.remove('dragging');
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    dragSrc = null;
+  });
+
+  container.addEventListener('dragover', e => {
+    if (!dragSrc) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const wrap = e.target.closest('.row-wrap');
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (wrap && wrap !== dragSrc) wrap.classList.add('drag-over');
+  });
+
+  container.addEventListener('drop', e => {
+    if (!dragSrc) return;
+    e.preventDefault();
+    const wrap = e.target.closest('.row-wrap');
+    if (!wrap || wrap === dragSrc) return;
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    const rect = wrap.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      container.insertBefore(dragSrc, wrap);
+    } else {
+      container.insertBefore(dragSrc, wrap.nextSibling);
+    }
+    saveRowOrder(container);
+  });
 }
 
 function swapPanels(id) {
@@ -5342,15 +5364,6 @@ function initPanelSwaps() {
   });
 }
 
-function updateRowButtons(container) {
-  const wraps = Array.from(container.querySelectorAll(':scope > .row-wrap'));
-  wraps.forEach((wrap, i) => {
-    const up = wrap.querySelector('.rc-up');
-    const dn = wrap.querySelector('.rc-dn');
-    if (up) up.disabled = (i === 0);
-    if (dn) dn.disabled = (i === wraps.length - 1);
-  });
-}
 
 // =======================================================
 // INIT
