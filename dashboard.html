@@ -1082,6 +1082,66 @@
     }
     .current-search-result:last-child { border-bottom: none; }
     .current-search-result:hover { background: var(--border); color: var(--fg); }
+
+    /* ── PORTFOLIO ───────────────────────────────────────── */
+    .portfolio-wrap { width: 100%; }
+    .portfolio-account { margin-bottom: 10px; }
+    .portfolio-account-hdr {
+      font-size: 9px; letter-spacing: 0.25em; color: var(--fg-dim);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 3px; margin-bottom: 4px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .portfolio-account-hdr span:last-child { color: var(--fg-muted); letter-spacing: 0.05em; }
+    .portfolio-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 80px 80px 80px;
+      gap: 4px; align-items: center;
+      font-size: 10px; padding: 2px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .portfolio-row:last-child { border-bottom: none; }
+    .portfolio-row.total-row {
+      font-size: 9px; letter-spacing: 0.1em;
+      color: var(--fg-dim); padding-top: 4px; margin-top: 2px;
+      border-bottom: none; border-top: 1px solid var(--border);
+    }
+    .portfolio-ticker { color: var(--accent); font-size: 10px; letter-spacing: 0.05em; }
+    .portfolio-name   { color: var(--fg-muted); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .portfolio-num    { text-align: right; color: var(--fg); }
+    .portfolio-gl     { text-align: right; font-size: 10px; }
+    .portfolio-gl.pos { color: #4caf50; }
+    .portfolio-gl.neg { color: var(--accent); }
+    .portfolio-grand {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-top: 1px solid var(--fg-muted); margin-top: 6px; padding-top: 5px;
+      font-size: 10px;
+    }
+    .portfolio-grand-label { color: var(--fg-dim); letter-spacing: 0.2em; font-size: 9px; }
+    .portfolio-grand-val   { color: var(--fg); }
+    .portfolio-grand-gl    { font-size: 10px; }
+    .portfolio-contrib     { font-size: 9px; color: var(--fg-dim); margin-top: 3px; }
+    .portfolio-loading     { color: var(--fg-muted); font-size: 10px; font-style: italic; }
+    .portfolio-edit-btn    {
+      background: none; border: 1px solid var(--border); cursor: pointer;
+      font-size: 9px; color: var(--fg-dim); padding: 1px 5px;
+      font-family: inherit;
+    }
+    .portfolio-edit-btn:hover { color: var(--fg); border-color: var(--fg-muted); }
+    .portfolio-edit-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 100px 100px auto;
+      gap: 4px; align-items: center;
+      font-size: 10px; padding: 3px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .portfolio-edit-inp {
+      background: transparent; border: none; border-bottom: 1px solid var(--fg-muted);
+      color: var(--fg); font-family: inherit; font-size: 10px;
+      padding: 1px 2px; outline: none; width: 100%;
+    }
+    .portfolio-edit-inp:focus { border-bottom-color: var(--fg); }
+    .portfolio-stale { font-size: 8px; color: var(--fg-dim); margin-left: 4px; }
   </style>
 </head>
 <body>
@@ -1149,6 +1209,12 @@
             <span class="sp-label">REMIND</span>
             <input id="cfg-remind-time" class="sp-input" type="time" style="width:90px">
             <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveRemindTime()">SET</button>
+          </div>
+          <div class="sp-divider">PORTFOLIO</div>
+          <div class="sp-row">
+            <span class="sp-label">AV KEY</span>
+            <input id="cfg-av-key" class="sp-input" type="password" placeholder="Alpha Vantage key">
+            <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveAvKey()">SET</button>
           </div>
         </div>
       </div>
@@ -1369,6 +1435,23 @@
     </div>
 
   </div><!-- /row 5 -->
+
+  <!-- ROW 6: PORTFOLIO -->
+  <div class="row" id="row-portfolio">
+    <div class="panel" style="width:100%">
+      <div class="panel-hdr" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>PORTFOLIO</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span class="portfolio-stale" id="portfolio-stale"></span>
+          <button class="btn" style="font-size:9px;padding:1px 5px;" onclick="refreshPortfolioPrices()">↻</button>
+          <button class="portfolio-edit-btn" onclick="togglePortfolioEdit()">EDIT</button>
+        </div>
+      </div>
+      <div class="portfolio-wrap" id="portfolio-wrap">
+        <div class="portfolio-loading">// loading prices…</div>
+      </div>
+    </div>
+  </div>
 
   </div><!-- /dashboard-rows -->
 
@@ -2980,6 +3063,7 @@ function toggleSettings(e) {
     document.getElementById('cfg-name').value = localStorage.getItem('dash_name') || '';
     document.getElementById('cfg-google-cid').value   = localStorage.getItem('dash_google_client_id') || '';
     document.getElementById('cfg-google-csec').value  = localStorage.getItem(GSECRET_KEY) ? '••••••••' : '';
+    document.getElementById('cfg-av-key').value       = localStorage.getItem(AV_KEY_STORAGE) ? '••••••••' : '';
     document.getElementById('cfg-remind-time').value  = localStorage.getItem('dash_remind_time') || '09:00';
     syncClockFmtBtns();
   }
@@ -3845,7 +3929,7 @@ const SYNC_KEYS = [
   'dash_zones', 'dash_todos_v1', 'dash_row_order', 'dash_panel_swaps',
   'dash_note_h', 'dash_google_task_list', 'dash_remind_time',
   'dash_current_listening', 'dash_current_reading', 'dash_current_mood',
-  'dash_notes_expanded',
+  'dash_notes_expanded', 'dash_portfolio',
 ];
 
 let gToken          = null;  // access token (memory only)
@@ -4181,6 +4265,203 @@ function saveRemindTime() {
   document.getElementById('cfg-btn').classList.remove('active');
 }
 
+// =======================================================
+// PORTFOLIO
+// =======================================================
+
+const PORTFOLIO_KEY       = 'dash_portfolio';
+const AV_KEY_STORAGE      = 'dash_av_key';
+const PORTFOLIO_PRICE_KEY = 'dash_portfolio_prices'; // { date, prices:{ticker:price} }
+const DEFAULT_AV_KEY      = 'WG30J3PKR0UJZ8C0';
+
+const DEFAULT_PORTFOLIO = {
+  accounts: [
+    {
+      id: 'roth',
+      name: 'ROTH IRA',
+      positions: [
+        { ticker: 'SWYHX', name: 'TARGET 2045 INDEX', shares: 1260.867, costBasis: 23813.42 },
+      ]
+    },
+    {
+      id: 'taxable',
+      name: 'TAXABLE',
+      positions: [
+        { ticker: 'SWTSX', name: 'TOTAL STOCK MKT',   shares: 3761.754, costBasis: 62405.12 },
+        { ticker: 'SWISX', name: 'INTL INDEX',         shares: 591.951,  costBasis: 17835.00 },
+        { ticker: 'SWSBX', name: 'SHORT-TERM BOND',    shares: 960.101,  costBasis: 9294.28  },
+        { ticker: 'SWPPX', name: 'S&P 500 INDEX',      shares: 201.064,  costBasis: 2400.98  },
+      ]
+    }
+  ]
+};
+
+function getPortfolio() {
+  const raw = localStorage.getItem(PORTFOLIO_KEY);
+  return raw ? JSON.parse(raw) : DEFAULT_PORTFOLIO;
+}
+
+function savePortfolio(p) {
+  localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(p));
+}
+
+function saveAvKey() {
+  const key = document.getElementById('cfg-av-key').value.trim();
+  if (key) localStorage.setItem(AV_KEY_STORAGE, key);
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('cfg-btn').classList.remove('active');
+}
+
+function fmt$(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtGL(n) {
+  const sign = n >= 0 ? '+' : '';
+  return sign + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtPct(n) {
+  const sign = n >= 0 ? '+' : '';
+  return sign + n.toFixed(2) + '%';
+}
+
+async function fetchPortfolioPrices(force) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!force) {
+    const cached = JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null');
+    if (cached && cached.date === today) return cached.prices;
+  }
+  const portfolio  = getPortfolio();
+  const tickers    = [...new Set(portfolio.accounts.flatMap(a => a.positions.map(p => p.ticker)))];
+  const avKey      = localStorage.getItem(AV_KEY_STORAGE) || DEFAULT_AV_KEY;
+  const prices     = {};
+  // Fetch sequentially to respect rate limits
+  for (const ticker of tickers) {
+    try {
+      const resp = await fetch(
+        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${avKey}`
+      );
+      const data = await resp.json();
+      const q = data['Global Quote'];
+      if (q && q['05. price']) prices[ticker] = parseFloat(q['05. price']);
+    } catch(e) { /* leave undefined */ }
+  }
+  localStorage.setItem(PORTFOLIO_PRICE_KEY, JSON.stringify({ date: today, prices }));
+  return prices;
+}
+
+let _portfolioEditMode = false;
+
+function togglePortfolioEdit() {
+  _portfolioEditMode = !_portfolioEditMode;
+  renderPortfolio(JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null')?.prices || {});
+}
+
+async function refreshPortfolioPrices() {
+  document.getElementById('portfolio-wrap').innerHTML = '<div class="portfolio-loading">// refreshing prices…</div>';
+  const prices = await fetchPortfolioPrices(true);
+  renderPortfolio(prices);
+}
+
+function renderPortfolio(prices) {
+  const portfolio = getPortfolio();
+  const wrap = document.getElementById('portfolio-wrap');
+  if (!wrap) return;
+
+  const cached = JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null');
+  const staleEl = document.getElementById('portfolio-stale');
+  if (staleEl && cached?.date) {
+    staleEl.textContent = cached.date === new Date().toISOString().slice(0,10)
+      ? 'TODAY' : 'AS OF ' + cached.date;
+  }
+
+  let grandValue = 0, grandCost = 0;
+  let html = '';
+
+  portfolio.accounts.forEach((acct, ai) => {
+    let acctValue = 0, acctCost = 0;
+
+    if (_portfolioEditMode) {
+      html += `<div class="portfolio-account">
+        <div class="portfolio-account-hdr"><span>${acct.name}</span></div>`;
+      acct.positions.forEach((pos, pi) => {
+        html += `<div class="portfolio-edit-row">
+          <span class="portfolio-ticker">${pos.ticker}</span>
+          <input class="portfolio-edit-inp" id="pe-name-${ai}-${pi}" value="${escHtml(pos.name)}" placeholder="name">
+          <input class="portfolio-edit-inp" id="pe-shares-${ai}-${pi}" value="${pos.shares}" placeholder="shares" style="text-align:right">
+          <input class="portfolio-edit-inp" id="pe-cost-${ai}-${pi}" value="${pos.costBasis}" placeholder="cost basis" style="text-align:right">
+          <button class="portfolio-edit-btn" onclick="savePositionEdit(${ai},${pi})">✓</button>
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      // Build position rows first to calculate account totals
+      let posHtml = '';
+      acct.positions.forEach(pos => {
+        const price = prices[pos.ticker];
+        const val   = price != null ? price * pos.shares : null;
+        const gl    = val  != null ? val - pos.costBasis : null;
+        const glPct = gl   != null ? (gl / pos.costBasis) * 100 : null;
+        if (val != null) { acctValue += val; acctCost += pos.costBasis; }
+        const valStr   = val   != null ? fmt$(val)     : '—';
+        const glStr    = gl    != null ? fmtGL(gl)     : '—';
+        const glPctStr = glPct != null ? fmtPct(glPct) : '';
+        const glClass  = gl == null ? '' : gl >= 0 ? 'pos' : 'neg';
+        posHtml += `<div class="portfolio-row">
+          <span class="portfolio-ticker">${pos.ticker}</span>
+          <span class="portfolio-name">${escHtml(pos.name)}</span>
+          <span class="portfolio-num">${valStr}</span>
+          <span class="portfolio-gl ${glClass}">${glStr}</span>
+          <span class="portfolio-gl ${glClass}" style="font-size:9px;">${glPctStr}</span>
+        </div>`;
+      });
+      const acctGL    = acctValue - acctCost;
+      const acctGLPct = acctCost > 0 ? (acctGL / acctCost) * 100 : 0;
+      const acctClass = acctGL >= 0 ? 'pos' : 'neg';
+      html += `<div class="portfolio-account">
+        <div class="portfolio-account-hdr">
+          <span>${acct.name}</span>
+          <span>${acctValue > 0 ? fmt$(acctValue) + ' ' : ''}${acctValue > 0 ? `<span class="portfolio-gl ${acctClass}" style="font-size:9px;">${fmtPct(acctGLPct)}</span>` : ''}</span>
+        </div>${posHtml}</div>`;
+      grandValue += acctValue; grandCost += acctCost;
+    }
+  });
+
+  if (!_portfolioEditMode && grandValue > 0) {
+    const grandGL    = grandValue - grandCost;
+    const grandGLPct = grandCost > 0 ? (grandGL / grandCost) * 100 : 0;
+    const grandClass = grandGL >= 0 ? 'pos' : 'neg';
+    html += `<div class="portfolio-grand">
+      <span class="portfolio-grand-label">TOTAL</span>
+      <span style="display:flex;gap:10px;align-items:baseline;">
+        <span class="portfolio-grand-val">${fmt$(grandValue)}</span>
+        <span class="portfolio-grand-gl ${grandClass}">${fmtGL(grandGL)} (${fmtPct(grandGLPct)})</span>
+      </span>
+    </div>
+    <div class="portfolio-contrib">CONTRIBUTED: ${fmt$(grandCost)}</div>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+function savePositionEdit(ai, pi) {
+  const portfolio = getPortfolio();
+  const pos = portfolio.accounts[ai].positions[pi];
+  const name   = document.getElementById(`pe-name-${ai}-${pi}`)?.value.trim();
+  const shares = parseFloat(document.getElementById(`pe-shares-${ai}-${pi}`)?.value);
+  const cost   = parseFloat(document.getElementById(`pe-cost-${ai}-${pi}`)?.value);
+  if (name)        pos.name      = name;
+  if (!isNaN(shares)) pos.shares = shares;
+  if (!isNaN(cost))   pos.costBasis = cost;
+  savePortfolio(portfolio);
+  _portfolioEditMode = false;
+  renderPortfolio(JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null')?.prices || {});
+}
+
+async function initPortfolio() {
+  const prices = await fetchPortfolioPrices(false);
+  renderPortfolio(prices);
+}
+
 function requestNotifPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -4472,6 +4753,7 @@ function updateRowButtons(container) {
   renderNotes();
   renderCalendar();
   loadCurrentStrip();
+  initPortfolio();
   // Timer
   renderTimer();
   const soundBtn = document.getElementById('timer-sound-btn');
