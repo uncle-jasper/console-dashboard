@@ -2416,6 +2416,116 @@ function wmoDesc(code) {
   return m[code] ?? 'UNKNOWN CONDITIONS';
 }
 
+function wmoIcon(code, size = 14) {
+  const ic = (paths) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" ` +
+    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ` +
+    `style="display:inline-block;vertical-align:-2px;margin-right:4px;">${paths}</svg>`;
+
+  // ── shared shapes ────────────────────────────────────────
+  const SUN =
+    `<circle cx="12" cy="12" r="4"/>` +
+    `<line x1="12" y1="2" x2="12" y2="5"/>` +
+    `<line x1="12" y1="19" x2="12" y2="22"/>` +
+    `<line x1="2" y1="12" x2="5" y2="12"/>` +
+    `<line x1="19" y1="12" x2="22" y2="12"/>` +
+    `<line x1="4.93" y1="4.93" x2="7.05" y2="7.05"/>` +
+    `<line x1="16.95" y1="16.95" x2="19.07" y2="19.07"/>` +
+    `<line x1="19.07" y1="4.93" x2="16.95" y2="7.05"/>` +
+    `<line x1="4.93" y1="19.07" x2="7.05" y2="16.95"/>`;
+
+  const CLOUD_FULL =
+    `<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>`;
+
+  // open-bottom cloud (room for rain/snow below)
+  const CLOUD_TOP =
+    `<path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>`;
+
+  // open-bottom cloud shifted up slightly for snow variant
+  const CLOUD_TOP_SNOW =
+    `<path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/>`;
+
+  const RAIN_LINES =
+    `<line x1="16" y1="13" x2="16" y2="21"/>` +
+    `<line x1="8" y1="13" x2="8" y2="21"/>` +
+    `<line x1="12" y1="15" x2="12" y2="23"/>`;
+
+  const DRIZZLE_LINES =
+    `<line x1="8" y1="19" x2="8" y2="21"/>` +
+    `<line x1="16" y1="19" x2="16" y2="21"/>` +
+    `<line x1="12" y1="21" x2="12" y2="23"/>`;
+
+  // dots created as zero-length round-cap lines
+  const SNOW_DOTS =
+    `<line x1="8"  y1="16" x2="8.01"  y2="16" stroke-width="3"/>` +
+    `<line x1="8"  y1="20" x2="8.01"  y2="20" stroke-width="3"/>` +
+    `<line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"/>` +
+    `<line x1="12" y1="22" x2="12.01" y2="22" stroke-width="3"/>` +
+    `<line x1="16" y1="16" x2="16.01" y2="16" stroke-width="3"/>` +
+    `<line x1="16" y1="20" x2="16.01" y2="20" stroke-width="3"/>`;
+
+  const BOLT = `<polyline points="13 11 9 17 13 17 9 23"/>`;
+
+  const CLOUD_TOP_BOLT =
+    `<path d="M19 16.9A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>`;
+
+  // ── mapping ──────────────────────────────────────────────
+  if (code <= 1) return ic(SUN);
+
+  if (code === 2) return ic(
+    // Small sun upper-left
+    `<circle cx="8" cy="9" r="3"/>` +
+    `<line x1="8" y1="3.5" x2="8" y2="5.5"/>` +
+    `<line x1="8" y1="12.5" x2="8" y2="14"/>` +
+    `<line x1="1.5" y1="9" x2="3.5" y2="9"/>` +
+    `<line x1="12.5" y1="9" x2="14.5" y2="9"/>` +
+    `<line x1="3.6" y1="4.6" x2="5" y2="6"/>` +
+    `<line x1="12.4" y1="4.6" x2="11" y2="6"/>` +
+    // Cloud lower-right
+    `<path d="M18 19H10a5 5 0 1 1 3.52-8.6 3.5 3.5 0 1 1 4.48 8.6z"/>`
+  );
+
+  if (code === 3) return ic(CLOUD_FULL);
+
+  if (code === 45 || code === 48) return ic(
+    `<line x1="3" y1="8"  x2="21" y2="8"/>` +
+    `<line x1="3" y1="12" x2="21" y2="12"/>` +
+    `<line x1="3" y1="16" x2="21" y2="16"/>`
+  );
+
+  if (code >= 51 && code <= 55) return ic(CLOUD_TOP + DRIZZLE_LINES);
+
+  if (code >= 61 && code <= 65) return ic(CLOUD_TOP + RAIN_LINES);
+
+  if (code === 66 || code === 67) return ic(
+    CLOUD_TOP + RAIN_LINES +
+    // ice crystal dot
+    `<line x1="20" y1="21" x2="20.01" y2="21" stroke-width="3"/>`
+  );
+
+  if (code >= 71 && code <= 77) return ic(CLOUD_TOP_SNOW + SNOW_DOTS);
+
+  if (code >= 80 && code <= 82) return ic(
+    CLOUD_TOP +
+    `<line x1="8"  y1="13" x2="6"  y2="21"/>` +
+    `<line x1="12" y1="13" x2="10" y2="21"/>` +
+    `<line x1="16" y1="13" x2="14" y2="21"/>` +
+    `<line x1="20" y1="13" x2="18" y2="21"/>`
+  );
+
+  if (code === 85 || code === 86) return ic(CLOUD_TOP_SNOW + SNOW_DOTS);
+
+  if (code === 95) return ic(CLOUD_TOP_BOLT + BOLT);
+
+  if (code === 96 || code === 99) return ic(
+    CLOUD_TOP_BOLT + BOLT +
+    `<line x1="20" y1="20" x2="20.01" y2="20" stroke-width="3"/>` +
+    `<line x1="22" y1="17" x2="22.01" y2="17" stroke-width="3"/>`
+  );
+
+  return ic(`<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2.5"/>`);
+}
+
 // =======================================================
 // CLOCK + WORLD CLOCKS  (updates every second)
 // =======================================================
@@ -2531,7 +2641,7 @@ async function loadWeather() {
       const uLabel = wxUnit === 'C' ? '°C' : '°F';
       const wLabel = wxUnit === 'C' ? 'KM/H' : 'MPH';
       tempEl.textContent  = `${Math.round(c.temperature_2m)}${uLabel}`;
-      condEl.textContent  = wmoDesc(c.weathercode);
+      condEl.innerHTML    = wmoIcon(c.weathercode) + wmoDesc(c.weathercode);
       humEl.textContent   = `${c.relative_humidity_2m}%`;
       windEl.textContent  = `${Math.round(c.windspeed_10m)} ${wLabel}`;
       feelsEl.textContent = `${Math.round(c.apparent_temperature)}${uLabel}`;
@@ -2549,10 +2659,10 @@ async function loadWeather() {
         const dayName = DNAMES[new Date(yr, mo - 1, dy).getDay()];
         const hi = Math.round(d.temperature_2m_max[i]);
         const lo = Math.round(d.temperature_2m_min[i]);
-        const cond = wmoDesc(d.weathercode[i]).split(' ').slice(0,2).join(' ');
+        const cond = wmoDesc(d.weathercode[i]).split(' ')[0];
         fcHtml += `<div class="wx-fc-row">
           <span class="wx-fc-name">${dayName}</span>
-          <span class="wx-fc-cond">${cond}</span>
+          <span class="wx-fc-cond">${wmoIcon(d.weathercode[i], 12)}${cond}</span>
           <span class="wx-fc-temps">${hi}° <span class="wx-fc-lo">/ ${lo}°</span></span>
         </div>`;
       }
