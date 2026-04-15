@@ -380,12 +380,12 @@
     .timer-sound-btn:hover { color: var(--fg); }
     .timer-sound-btn.muted { opacity: 0.35; }
     .timer-display {
-      font-size: 48px;
+      font-size: calc(48px * var(--tw-scale, 1));
       letter-spacing: 0.06em;
       color: var(--fg-dim);
       line-height: 1;
       font-variant-numeric: tabular-nums;
-      transition: color 0.25s;
+      transition: color 0.25s, font-size 0.15s;
     }
     .timer-display.running { color: var(--accent); }
     .timer-display.done    { color: var(--fg); }
@@ -405,12 +405,12 @@
       gap: 4px;
     }
     .timer-custom-inputs input {
-      width: 38px;
+      width: calc(38px * var(--tw-scale, 1));
       background: var(--input-bg);
       border: 1px solid var(--border);
       color: var(--fg);
       font-family: inherit;
-      font-size: 20px;
+      font-size: calc(20px * var(--tw-scale, 1));
       text-align: center;
       padding: 3px 4px;
       outline: none;
@@ -419,7 +419,7 @@
     .timer-custom-inputs input::-webkit-outer-spin-button,
     .timer-custom-inputs input::-webkit-inner-spin-button { -webkit-appearance: none; }
     .timer-custom-inputs input:focus { border-color: var(--fg-dim); }
-    .timer-custom-sep { font-size: 20px; color: var(--fg-dim); }
+    .timer-custom-sep { font-size: calc(20px * var(--tw-scale, 1)); color: var(--fg-dim); }
     .timer-controls { display: flex; gap: 5px; margin-top: 2px; }
 
     /* ===================================================
@@ -5226,6 +5226,22 @@ function updateRowButtons(container) {
   checkTaskReminders();
   // Layout controls
   initLayoutControls();
+
+  // Scale timer display to fill available panel height
+  (function() {
+    const wrap = document.querySelector('.timer-wrap');
+    if (!wrap || typeof ResizeObserver === 'undefined') return;
+    // Fixed chrome height: mode-row (~29px) + phase-row (~18px) + controls (~33px) + gaps/padding (~22px)
+    const CHROME_H = 102;
+    // Base display font-size; scale=1 when display fills its natural space
+    const BASE_PX  = 48;
+    new ResizeObserver(([entry]) => {
+      const avail = Math.max(0, entry.contentRect.height - CHROME_H);
+      const scale = Math.max(1, Math.min(2.5, (avail * 0.65) / BASE_PX));
+      wrap.style.setProperty('--tw-scale', scale.toFixed(3));
+    }).observe(wrap);
+  })();
+
   // Flush any pending Drive save before tab closes
   window.addEventListener('beforeunload', () => { if (isGConnected()) driveSave(); });
 })();
