@@ -3641,23 +3641,50 @@ function cycleTimerSound() {
 
 function toggleTimerNotif() {
   timerNotif = !timerNotif;
-  if (timerNotif && 'Notification' in window) {
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().then(() => updateTimerSoundUI());
-    } else if (Notification.permission === 'denied') {
-      // Browser has blocked notifications — show tooltip hint
-      const btn = document.getElementById('timer-notif-btn');
-      if (btn) {
-        const orig = btn.title;
-        btn.title = 'Notifications blocked — allow in browser site settings';
-        setTimeout(() => { btn.title = orig; }, 4000);
-      }
-      timerNotif = false;
-      localStorage.setItem('dash_timer_notif', 'off');
-    }
+
+  if (!timerNotif) {
+    // Turning off — just save and update UI
+    localStorage.setItem('dash_timer_notif', 'off');
+    updateTimerSoundUI();
+    return;
   }
-  localStorage.setItem('dash_timer_notif', timerNotif ? 'on' : 'off');
-  updateTimerSoundUI();
+
+  // Turning on — check permission state
+  if (!('Notification' in window)) {
+    timerNotif = false;
+    localStorage.setItem('dash_timer_notif', 'off');
+    updateTimerSoundUI();
+    return;
+  }
+
+  const enable = () => {
+    timerNotif = true;
+    localStorage.setItem('dash_timer_notif', 'on');
+    updateTimerSoundUI();
+    // Fire a test notification so the user knows it's working
+    new Notification('// DASHBOARD', { body: 'Timer notifications are ON', tag: 'dash-timer-test' });
+  };
+  const block = () => {
+    timerNotif = false;
+    localStorage.setItem('dash_timer_notif', 'off');
+    updateTimerSoundUI();
+    const btn = document.getElementById('timer-notif-btn');
+    if (btn) {
+      btn.title = 'Notifications blocked — allow in browser site settings';
+      setTimeout(() => { btn.title = ''; }, 4000);
+    }
+  };
+
+  if (Notification.permission === 'granted') {
+    enable();
+  } else if (Notification.permission === 'default') {
+    Notification.requestPermission().then(result => {
+      if (result === 'granted') enable(); else block();
+    });
+    updateTimerSoundUI(); // update UI optimistically while dialog is open
+  } else {
+    block();
+  }
 }
 
 function updateTimerSoundUI() {
