@@ -1210,12 +1210,6 @@
             <input id="cfg-remind-time" class="sp-input" type="time" style="width:90px">
             <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveRemindTime()">SET</button>
           </div>
-          <div class="sp-divider">PORTFOLIO</div>
-          <div class="sp-row">
-            <span class="sp-label">AV KEY</span>
-            <input id="cfg-av-key" class="sp-input" type="password" placeholder="Alpha Vantage key">
-            <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;" onclick="saveAvKey()">SET</button>
-          </div>
         </div>
       </div>
     </div>
@@ -1444,6 +1438,7 @@
         <div style="display:flex;gap:6px;align-items:center;">
           <span class="portfolio-stale" id="portfolio-stale"></span>
           <button class="btn" style="font-size:9px;padding:1px 5px;" onclick="refreshPortfolioPrices()">↻</button>
+          <button class="btn" style="font-size:9px;padding:1px 5px;" onclick="showPortfolioHelp()" title="how to update">?</button>
           <button class="portfolio-edit-btn" onclick="togglePortfolioEdit()">EDIT</button>
         </div>
       </div>
@@ -3063,7 +3058,6 @@ function toggleSettings(e) {
     document.getElementById('cfg-name').value = localStorage.getItem('dash_name') || '';
     document.getElementById('cfg-google-cid').value   = localStorage.getItem('dash_google_client_id') || '';
     document.getElementById('cfg-google-csec').value  = localStorage.getItem(GSECRET_KEY) ? '••••••••' : '';
-    document.getElementById('cfg-av-key').value       = localStorage.getItem(AV_KEY_STORAGE) ? '••••••••' : '';
     document.getElementById('cfg-remind-time').value  = localStorage.getItem('dash_remind_time') || '09:00';
     syncClockFmtBtns();
   }
@@ -4270,9 +4264,7 @@ function saveRemindTime() {
 // =======================================================
 
 const PORTFOLIO_KEY       = 'dash_portfolio';
-const AV_KEY_STORAGE      = 'dash_av_key';
 const PORTFOLIO_PRICE_KEY = 'dash_portfolio_prices'; // { date, prices:{ticker:price} }
-const DEFAULT_AV_KEY      = '';
 
 const DEFAULT_PORTFOLIO = {
   accounts: [
@@ -4305,18 +4297,12 @@ function savePortfolio(p) {
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(p));
 }
 
-function saveAvKey() {
-  const key = document.getElementById('cfg-av-key').value.trim();
-  if (key) localStorage.setItem(AV_KEY_STORAGE, key);
-  document.getElementById('settings-panel').classList.remove('open');
-  document.getElementById('cfg-btn').classList.remove('active');
-}
 
 function fmt$(n) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function fmtGL(n) {
-  const sign = n >= 0 ? '+' : '';
+  const sign = n >= 0 ? '+' : '-';
   return sign + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function fmtPct(n) {
@@ -4345,18 +4331,6 @@ async function fetchTickerPrice(ticker) {
     if (price) return price;
   } catch(e) {}
 
-  // Final fallback: Alpha Vantage (if key is set)
-  const avKey = localStorage.getItem(AV_KEY_STORAGE) || DEFAULT_AV_KEY;
-  if (avKey) {
-    try {
-      const resp = await fetch(
-        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${avKey}`
-      );
-      const data = await resp.json();
-      const q = data['Global Quote'];
-      if (q && q['05. price']) return parseFloat(q['05. price']);
-    } catch(e) {}
-  }
   return null;
 }
 
@@ -4492,6 +4466,28 @@ function savePositionEdit(ai, pi) {
   savePortfolio(portfolio);
   _portfolioEditMode = false;
   renderPortfolio(JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null')?.prices || {});
+}
+
+function showPortfolioHelp() {
+  alert(`HOW TO UPDATE YOUR PORTFOLIO
+
+After making a new investment:
+
+1. Log into schwab.com
+2. Go to Accounts → Positions
+3. Find the fund you added to
+4. Note the new "Qty" (total shares) and "Cost Basis" values
+   shown by Schwab — these already include your new purchase.
+
+5. In the dashboard, click EDIT on the portfolio panel
+6. Update the Shares and Cost Basis fields for that fund
+   to match exactly what Schwab shows
+7. Click ✓ to save
+
+That's it. Schwab does all the cost basis math for you.
+
+TIP: The Cost Basis shown here should always match the
+"Cost Basis" column in your Schwab Positions Details.`);
 }
 
 async function initPortfolio() {
