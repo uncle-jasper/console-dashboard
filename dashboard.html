@@ -349,10 +349,33 @@
       gap: 5px;
       padding: 2px 0 4px;
     }
+    .timer-settings {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      max-height: 120px;
+      opacity: 1;
+      overflow: hidden;
+      transition: opacity 0.35s ease, max-height 0.4s ease;
+    }
+    .timer-wrap.timer-running .timer-settings {
+      opacity: 0;
+      max-height: 0;
+      pointer-events: none;
+    }
     .timer-mode-row {
       display: flex;
       gap: 5px;
       align-items: center;
+      justify-content: center;
+    }
+    .timer-aux-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
     }
     .tmbtn {
       background: none;
@@ -1424,17 +1447,21 @@
     <!-- TIMER -->
     <div class="panel" id="timer-panel">
       <div class="panel-hdr">TIMER</div>
-      <div class="timer-wrap">
-        <div class="timer-mode-row">
-          <button class="tmbtn active" id="tm-pomo"   onclick="setTimerMode('pomo')">POMO</button>
-          <button class="tmbtn"        id="tm-custom" onclick="setTimerMode('custom')">CUSTOM</button>
-          <button class="timer-sound-btn" id="timer-sound-btn" onclick="cycleTimerSound()">♪ BEEP</button>
-          <button class="timer-sound-btn" id="timer-notif-btn" onclick="toggleTimerNotif()" title="browser notification when done">○ NOTIFY</button>
-        </div>
-        <div class="timer-vol-row" id="timer-vol-row">
-          <button class="timer-vol-btn" onclick="setTimerVolume(-10)">−</button>
-          <span class="timer-vol-bar" id="timer-vol-bar">▮▮▮▮▮▮▮▯▯▯</span>
-          <button class="timer-vol-btn" onclick="setTimerVolume(10)">+</button>
+      <div class="timer-wrap" id="timer-wrap">
+        <div class="timer-settings" id="timer-settings">
+          <div class="timer-mode-row">
+            <button class="tmbtn active" id="tm-pomo"   onclick="setTimerMode('pomo')">POMO</button>
+            <button class="tmbtn"        id="tm-custom" onclick="setTimerMode('custom')">CUSTOM</button>
+          </div>
+          <div class="timer-aux-row">
+            <button class="timer-sound-btn" id="timer-sound-btn" onclick="cycleTimerSound()">♪ BEEP</button>
+            <button class="timer-sound-btn" id="timer-notif-btn" onclick="toggleTimerNotif()" title="browser notification when done">○ NOTIFY</button>
+          </div>
+          <div class="timer-vol-row" id="timer-vol-row">
+            <button class="timer-vol-btn" onclick="setTimerVolume(-10)">−</button>
+            <span class="timer-vol-bar" id="timer-vol-bar">▮▮▮▮▮▮▮▯▯▯</span>
+            <button class="timer-vol-btn" onclick="setTimerVolume(10)">+</button>
+          </div>
         </div>
         <div class="timer-display" id="timer-display">25:00</div>
         <div class="timer-phase-row" id="timer-phase-row">
@@ -3488,6 +3515,9 @@ function timerTick() {
     clearInterval(timerInterval);
     timerInterval = null;
     timerRunning  = false;
+    const wrapEl = document.getElementById('timer-wrap');
+    wrapEl && wrapEl.classList.remove('timer-running');
+    updateTimerScale();
     playSound(timerSoundName);
     // Browser notification
     if (timerNotif && 'Notification' in window && Notification.permission === 'granted') {
@@ -3520,11 +3550,14 @@ function timerTick() {
 }
 
 function timerToggle() {
+  const wrap = document.getElementById('timer-wrap');
   if (timerRunning) {
     // Pause
     clearInterval(timerInterval);
     timerInterval = null;
     timerRunning  = false;
+    wrap && wrap.classList.remove('timer-running');
+    updateTimerScale();
     renderTimer();
   } else {
     // Start — in custom mode, read inputs first if timer is fresh
@@ -3538,6 +3571,8 @@ function timerToggle() {
     // Hide custom inputs while running
     document.getElementById('timer-custom-inputs').style.display = 'none';
     timerRunning  = true;
+    wrap && wrap.classList.add('timer-running');
+    setTimeout(updateTimerScale, 400);
     timerInterval = setInterval(timerTick, 1000);
     renderTimer();
   }
@@ -3547,6 +3582,9 @@ function timerReset() {
   clearInterval(timerInterval);
   timerInterval = null;
   timerRunning  = false;
+  const wrap = document.getElementById('timer-wrap');
+  wrap && wrap.classList.remove('timer-running');
+  updateTimerScale();
   if (timerMode === 'pomo') {
     pomoPhase    = 'work';
     pomoWorkDone = 0;
@@ -5342,18 +5380,22 @@ function updateRowButtons(container) {
   initLayoutControls();
 
   // Scale timer display to fill available panel height
-  (function() {
-    const wrap = document.querySelector('.timer-wrap');
-    if (!wrap || typeof ResizeObserver === 'undefined') return;
-    // Fixed chrome height: mode-row (~29px) + phase-row (~18px) + controls (~33px) + gaps/padding (~22px)
-    const CHROME_H = 102;
-    // Base display font-size; scale=1 when display fills its natural space
+  function updateTimerScale() {
+    const wrap = document.getElementById('timer-wrap');
+    if (!wrap) return;
+    // Chrome height changes depending on whether settings are shown
+    // Running: only phase-row + controls + gaps remain visible
+    // Stopped: settings (3 rows ~72px) + phase-row + controls + gaps
+    const CHROME_H = timerRunning ? 62 : 138;
     const BASE_PX  = 48;
-    new ResizeObserver(([entry]) => {
-      const avail = Math.max(0, entry.contentRect.height - CHROME_H);
-      const scale = Math.max(1, Math.min(2.5, (avail * 0.65) / BASE_PX));
-      wrap.style.setProperty('--tw-scale', scale.toFixed(3));
-    }).observe(wrap);
+    const avail = Math.max(0, wrap.getBoundingClientRect().height - CHROME_H);
+    const scale = Math.max(1, Math.min(2.5, (avail * 0.65) / BASE_PX));
+    wrap.style.setProperty('--tw-scale', scale.toFixed(3));
+  }
+  (function() {
+    const wrap = document.getElementById('timer-wrap');
+    if (!wrap || typeof ResizeObserver === 'undefined') return;
+    new ResizeObserver(() => updateTimerScale()).observe(wrap);
   })();
 
   // Flush any pending Drive save before tab closes
