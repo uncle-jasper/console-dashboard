@@ -4324,31 +4324,43 @@ function fmtPct(n) {
   return sign + n.toFixed(2) + '%';
 }
 
-async function fetchPortfolioPrices(force) {
-  const today = new Date().toISOString().slice(0, 10);
-  if (!force) {
-    const cached = JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null');
-    if (cached && cached.date === today) return cached.prices;
-  }
-  const portfolio  = getPortfolio();
-  const tickers    = [...new Set(portfolio.accounts.flatMap(a => a.positions.map(p => p.ticker)))];
+async function fetchTickerPrice(ticker) {
+  // Primary: Yahoo Finance (broader mutual fund coverage, no key needed)
+  try {
+    const resp = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
+    );
+    const data = await resp.json();
+    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    if (price) return price;
+  } catch(e) {}
+  // Fallback: Alpha Vantage
   const avKey = localStorage.getItem(AV_KEY_STORAGE) || DEFAULT_AV_KEY;
-  if (!avKey) {
-    document.getElementById('portfolio-wrap').innerHTML =
-      '<div class="portfolio-loading">// enter Alpha Vantage API key in settings (CFG → PORTFOLIO)</div>';
-    return {};
-  }
-  const prices = {};
-  // Fetch sequentially to respect rate limits
-  for (const ticker of tickers) {
+  if (avKey) {
     try {
       const resp = await fetch(
         `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${avKey}`
       );
       const data = await resp.json();
       const q = data['Global Quote'];
-      if (q && q['05. price']) prices[ticker] = parseFloat(q['05. price']);
-    } catch(e) { /* leave undefined */ }
+      if (q && q['05. price']) return parseFloat(q['05. price']);
+    } catch(e) {}
+  }
+  return null;
+}
+
+async function fetchPortfolioPrices(force) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!force) {
+    const cached = JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null');
+    if (cached && cached.date === today) return cached.prices;
+  }
+  const portfolio = getPortfolio();
+  const tickers   = [...new Set(portfolio.accounts.flatMap(a => a.positions.map(p => p.ticker)))];
+  const prices    = {};
+  for (const ticker of tickers) {
+    const price = await fetchTickerPrice(ticker);
+    if (price != null) prices[ticker] = price;
   }
   localStorage.setItem(PORTFOLIO_PRICE_KEY, JSON.stringify({ date: today, prices }));
   return prices;
@@ -4380,6 +4392,8 @@ function renderPortfolio(prices) {
   }
 
   let grandValue = 0, grandCost = 0;
+  // Always total all cost bases regardless of price availability
+  portfolio.accounts.forEach(a => a.positions.forEach(p => { grandCost += p.costBasis; }));
   let html = '';
 
   portfolio.accounts.forEach((acct, ai) => {
@@ -4427,7 +4441,7 @@ function renderPortfolio(prices) {
           <span>${acct.name}</span>
           <span>${acctValue > 0 ? fmt$(acctValue) + ' ' : ''}${acctValue > 0 ? `<span class="portfolio-gl ${acctClass}" style="font-size:9px;">${fmtPct(acctGLPct)}</span>` : ''}</span>
         </div>${posHtml}</div>`;
-      grandValue += acctValue; grandCost += acctCost;
+      grandValue += acctValue;
     }
   });
 
