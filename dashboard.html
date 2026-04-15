@@ -3641,8 +3641,20 @@ function cycleTimerSound() {
 
 function toggleTimerNotif() {
   timerNotif = !timerNotif;
-  if (timerNotif && 'Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission().then(() => updateTimerSoundUI());
+  if (timerNotif && 'Notification' in window) {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then(() => updateTimerSoundUI());
+    } else if (Notification.permission === 'denied') {
+      // Browser has blocked notifications — show tooltip hint
+      const btn = document.getElementById('timer-notif-btn');
+      if (btn) {
+        const orig = btn.title;
+        btn.title = 'Notifications blocked — allow in browser site settings';
+        setTimeout(() => { btn.title = orig; }, 4000);
+      }
+      timerNotif = false;
+      localStorage.setItem('dash_timer_notif', 'off');
+    }
   }
   localStorage.setItem('dash_timer_notif', timerNotif ? 'on' : 'off');
   updateTimerSoundUI();
@@ -3658,10 +3670,13 @@ function updateTimerSoundUI() {
     soundBtn.classList.toggle('muted', off);
   }
   if (notifBtn) {
-    const granted = 'Notification' in window && Notification.permission === 'granted';
+    const perm    = 'Notification' in window ? Notification.permission : 'denied';
+    const granted = perm === 'granted';
+    const denied  = perm === 'denied';
     const active  = timerNotif && granted;
-    notifBtn.textContent = active ? '● NOTIFY' : '○ NOTIFY';
+    notifBtn.textContent = active ? '● NOTIFY' : denied ? '✕ NOTIFY' : '○ NOTIFY';
     notifBtn.classList.toggle('muted', !active);
+    if (denied) notifBtn.title = 'Notifications blocked — allow in browser site settings';
   }
 }
 
