@@ -444,19 +444,6 @@
     .timer-custom-inputs input:focus { border-color: var(--fg-dim); }
     .timer-custom-sep { font-size: calc(20px * var(--tw-scale, 1)); color: var(--fg-dim); }
     .timer-controls { display: flex; gap: 5px; margin-top: 2px; }
-    .timer-vol-row {
-      display: flex; align-items: center; gap: 5px;
-    }
-    .timer-vol-btn {
-      background: none; border: none; color: var(--fg-muted); font-family: inherit;
-      font-size: 13px; cursor: pointer; padding: 0 3px; line-height: 1;
-      transition: color 0.1s;
-    }
-    .timer-vol-btn:hover { color: var(--fg); }
-    .timer-vol-bar {
-      font-size: 9px; letter-spacing: 0.08em; color: var(--fg-dim);
-      user-select: none; min-width: 72px; text-align: center;
-    }
 
     /* ===================================================
        TODO
@@ -1456,11 +1443,6 @@
           <div class="timer-aux-row">
             <button class="timer-sound-btn" id="timer-sound-btn" onclick="cycleTimerSound()">♪ BEEP</button>
             <button class="timer-sound-btn" id="timer-notif-btn" onclick="toggleTimerNotif()" title="browser notification when done">○ NOTIFY</button>
-          </div>
-          <div class="timer-vol-row" id="timer-vol-row">
-            <button class="timer-vol-btn" onclick="setTimerVolume(-10)">−</button>
-            <span class="timer-vol-bar" id="timer-vol-bar">▮▮▮▮▮▮▮▯▯▯</span>
-            <button class="timer-vol-btn" onclick="setTimerVolume(10)">+</button>
           </div>
         </div>
         <div class="timer-display" id="timer-display">25:00</div>
@@ -3480,7 +3462,6 @@ function _loadTimerSound() {
   return TIMER_SOUNDS.includes(s) ? s : 'BEEP';
 }
 let timerSoundName = _loadTimerSound();
-let timerVolume    = Math.min(100, Math.max(0, parseInt(localStorage.getItem('dash_timer_volume') || '70', 10)));
 let timerNotif     = localStorage.getItem('dash_timer_notif') === 'on';
 let pomoWorkDone   = 0;        // completed work sessions in current cycle (0-4)
 let customDuration = 25 * 60; // saved custom duration for reset
@@ -3658,13 +3639,6 @@ function cycleTimerSound() {
   if (timerSoundName !== 'off') playSound(timerSoundName);
 }
 
-function setTimerVolume(delta) {
-  timerVolume = Math.min(100, Math.max(0, timerVolume + delta));
-  localStorage.setItem('dash_timer_volume', String(timerVolume));
-  updateTimerSoundUI();
-  if (timerSoundName !== 'off') playSound(timerSoundName);
-}
-
 function toggleTimerNotif() {
   timerNotif = !timerNotif;
   if (timerNotif && 'Notification' in window && Notification.permission === 'default') {
@@ -3676,19 +3650,12 @@ function toggleTimerNotif() {
 
 function updateTimerSoundUI() {
   const soundBtn = document.getElementById('timer-sound-btn');
-  const volRow   = document.getElementById('timer-vol-row');
-  const volBar   = document.getElementById('timer-vol-bar');
   const notifBtn = document.getElementById('timer-notif-btn');
   const off      = timerSoundName === 'off';
 
   if (soundBtn) {
     soundBtn.textContent = off ? '♪ OFF' : `♪ ${timerSoundName}`;
     soundBtn.classList.toggle('muted', off);
-  }
-  if (volRow) volRow.style.display = off ? 'none' : 'flex';
-  if (volBar) {
-    const n = Math.round(timerVolume / 10);
-    volBar.textContent = '▮'.repeat(n) + '▯'.repeat(10 - n);
   }
   if (notifBtn) {
     const granted = 'Notification' in window && Notification.permission === 'granted';
@@ -3702,10 +3669,9 @@ function playSound(name) {
   if (!name || name === 'off') return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const v   = timerVolume / 100;
 
     // Helper: schedule a single synthesized note
-    const note = (freq, start, dur, type = 'sine', peak = v * 0.35) => {
+    const note = (freq, start, dur, type = 'sine', peak = 0.35) => {
       const osc = ctx.createOscillator(), g = ctx.createGain();
       osc.connect(g); g.connect(ctx.destination);
       osc.type = type; osc.frequency.value = freq;
@@ -4245,7 +4211,7 @@ const SYNC_KEYS = [
   'dash_note_h', 'dash_google_task_list', 'dash_remind_time',
   'dash_current_listening', 'dash_current_reading', 'dash_current_mood',
   'dash_notes_expanded', 'dash_portfolio',
-  'dash_row_hidden', 'dash_timer_volume', 'dash_timer_notif',
+  'dash_row_hidden', 'dash_timer_notif',
 ];
 
 let gToken          = null;  // access token (memory only)
@@ -5134,7 +5100,6 @@ function hydrateFromDrive() {
   wxUnit       = localStorage.getItem('dash_wx_unit') || 'F';
   quoteMode    = localStorage.getItem('dash_quote_mode') || 'stoic';
   timerSoundName = _loadTimerSound();
-  timerVolume    = Math.min(100, Math.max(0, parseInt(localStorage.getItem('dash_timer_volume') || '70', 10)));
   timerNotif     = localStorage.getItem('dash_timer_notif') === 'on';
 
   setTheme(localStorage.getItem('dash_theme') || 'green');
