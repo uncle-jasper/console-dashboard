@@ -4036,9 +4036,10 @@ function onConnected() {
     // Re-check token expiry on each sync tick; refresh if needed
     const refresh = localStorage.getItem(G_REFRESH_KEY);
     if (!isGConnected() && refresh) {
-      doRefresh(refresh).then(() => { if (isGConnected()) loadGTasks(); });
+      doRefresh(refresh).then(() => { if (isGConnected()) { loadGTasks(); driveLoad(); } });
     } else if (isGConnected()) {
       loadGTasks();
+      driveLoad();
     }
   }, 60000);
 }
