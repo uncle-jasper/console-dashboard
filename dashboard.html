@@ -4272,7 +4272,7 @@ function saveRemindTime() {
 const PORTFOLIO_KEY       = 'dash_portfolio';
 const AV_KEY_STORAGE      = 'dash_av_key';
 const PORTFOLIO_PRICE_KEY = 'dash_portfolio_prices'; // { date, prices:{ticker:price} }
-const DEFAULT_AV_KEY      = 'WG30J3PKR0UJZ8C0';
+const DEFAULT_AV_KEY      = '';
 
 const DEFAULT_PORTFOLIO = {
   accounts: [
@@ -4332,8 +4332,13 @@ async function fetchPortfolioPrices(force) {
   }
   const portfolio  = getPortfolio();
   const tickers    = [...new Set(portfolio.accounts.flatMap(a => a.positions.map(p => p.ticker)))];
-  const avKey      = localStorage.getItem(AV_KEY_STORAGE) || DEFAULT_AV_KEY;
-  const prices     = {};
+  const avKey = localStorage.getItem(AV_KEY_STORAGE) || DEFAULT_AV_KEY;
+  if (!avKey) {
+    document.getElementById('portfolio-wrap').innerHTML =
+      '<div class="portfolio-loading">// enter Alpha Vantage API key in settings (CFG → PORTFOLIO)</div>';
+    return {};
+  }
+  const prices = {};
   // Fetch sequentially to respect rate limits
   for (const ticker of tickers) {
     try {
