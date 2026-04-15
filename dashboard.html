@@ -3696,7 +3696,7 @@ function playSound(name) {
           osc.connect(g); g.connect(ctx.destination);
           osc.type = 'sine'; osc.frequency.value = freq;
           g.gain.setValueAtTime(0, ctx.currentTime);
-          g.gain.linearRampToValueAtTime(v * amp * 0.4, ctx.currentTime + 0.01);
+          g.gain.linearRampToValueAtTime(amp * 0.4, ctx.currentTime + 0.01);
           g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.2);
           osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 2.3);
         });
@@ -3705,21 +3705,21 @@ function playSound(name) {
       case 'CHIME':
         // Ascending musical chime: C5 E5 G5 C6
         [[0, 523], [0.2, 659], [0.4, 784], [0.6, 1047]].forEach(([t, f]) =>
-          note(f, t, 0.8, 'triangle', v * 0.4)
+          note(f, t, 0.8, 'triangle', 0.4)
         );
         break;
 
       case 'PULSE':
         // Short crisp digital blips
-        note(900, 0,    0.07, 'square', v * 0.3);
-        note(900, 0.1,  0.07, 'square', v * 0.3);
-        note(900, 0.2,  0.07, 'square', v * 0.3);
+        note(900, 0,    0.07, 'square', 0.25);
+        note(900, 0.1,  0.07, 'square', 0.25);
+        note(900, 0.2,  0.07, 'square', 0.25);
         break;
 
       case 'ALARM':
         // Urgent alternating two-tone alarm
         for (let i = 0; i < 6; i++)
-          note(i % 2 === 0 ? 960 : 720, i * 0.16, 0.13, 'sine', v * 0.45);
+          note(i % 2 === 0 ? 960 : 720, i * 0.16, 0.13, 'sine', 0.45);
         break;
     }
   } catch(e) {}
