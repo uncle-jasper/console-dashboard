@@ -4882,13 +4882,24 @@ async function fetchPortfolioHistory(range) {
   const yhRangeMap = { '1W': '5d', '1M': '1mo', '3M': '3mo', '1Y': '1y' };
   const yhRange    = yhRangeMap[range] || '1mo';
 
+  const yhProxies = [
+    u => u,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://cors.eu.org/${u}`,
+  ];
+
   const tickerHistory = {};
   for (const ticker of tickers) {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${yhRange}`;
+    const urls = [
+      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${yhRange}`,
+      `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${yhRange}`,
+    ];
     let data = null;
-    try { const r = await fetch(url); data = await r.json(); } catch(e) {}
-    if (!data?.chart?.result?.[0]) {
-      try { const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); data = await r.json(); } catch(e) {}
+    outer: for (const base of urls) {
+      for (const proxy of yhProxies) {
+        try { const r = await fetch(proxy(base)); if (r.ok) { data = await r.json(); if (data?.chart?.result?.[0]) break outer; } } catch(e) {}
+      }
     }
     if (data?.chart?.result?.[0]) {
       const res = data.chart.result[0];
