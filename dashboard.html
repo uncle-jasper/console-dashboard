@@ -4647,25 +4647,28 @@ function fmtPct(n) {
 }
 
 async function fetchTickerPrice(ticker) {
-  const yhUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+  const v8  = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+  const v8q2 = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+  const getV8Price = d => d?.chart?.result?.[0]?.meta?.regularMarketPrice ?? null;
 
-  // Try Yahoo Finance direct first
-  try {
-    const resp = await fetch(yhUrl);
-    const data = await resp.json();
-    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    if (price) return price;
-  } catch(e) {}
+  const proxies = [
+    url => url,                                                          // direct
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    url => `https://cors.eu.org/${url}`,
+  ];
 
-  // CORS proxy fallback for Yahoo Finance
-  try {
-    const resp = await fetch(
-      `https://corsproxy.io/?${encodeURIComponent(yhUrl)}`
-    );
-    const data = await resp.json();
-    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    if (price) return price;
-  } catch(e) {}
+  for (const base of [v8, v8q2]) {
+    for (const proxy of proxies) {
+      try {
+        const resp = await fetch(proxy(base));
+        if (!resp.ok) continue;
+        const data  = await resp.json();
+        const price = getV8Price(data);
+        if (price) return price;
+      } catch(e) {}
+    }
+  }
 
   return null;
 }
@@ -4674,7 +4677,10 @@ async function fetchPortfolioPrices(force) {
   const today = new Date().toISOString().slice(0, 10);
   if (!force) {
     const cached = JSON.parse(localStorage.getItem(PORTFOLIO_PRICE_KEY) || 'null');
-    if (cached && cached.date === today) return cached.prices;
+    // Only use cache if it actually has prices (don't cache empty fetch failures)
+    if (cached && cached.date === today && Object.keys(cached.prices || {}).length > 0) {
+      return cached.prices;
+    }
   }
   const portfolio = getPortfolio();
   const tickers   = [...new Set(portfolio.accounts.flatMap(a => a.positions.map(p => p.ticker)))];
