@@ -4826,8 +4826,12 @@ TIP: The Cost Basis shown here should always match the
 "Cost Basis" column in your Schwab Positions Details.`);
 }
 
-async function initPortfolio() {
-  const prices = await fetchPortfolioPrices(false);
+async function initPortfolio(force = false) {
+  if (force) {
+    const wrap = document.getElementById('portfolio-wrap');
+    if (wrap) wrap.innerHTML = '<div class="portfolio-loading">// fetching prices…</div>';
+  }
+  const prices = await fetchPortfolioPrices(force);
   renderPortfolio(prices);
 }
 
@@ -5163,7 +5167,7 @@ function hydrateFromDrive() {
   loadCurrentStrip();
   updateTimerSoundUI();
   applyRowHidden();
-  initPortfolio();
+  initPortfolio(true);
 }
 // =======================================================
 const ROW_ORDER_KEY  = 'dash_row_order';
